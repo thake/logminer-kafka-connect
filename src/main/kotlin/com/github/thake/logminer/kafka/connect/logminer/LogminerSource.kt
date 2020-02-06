@@ -18,7 +18,7 @@ class LogminerSource(
     private val config: LogminerConfiguration,
     schemaService: SchemaService,
     offset: OracleLogOffset
-) : Source {
+) : Source<OracleLogOffset> {
     private var currentState: QueryStartedState? = null
     private var lastOffset: FetcherOffset =
         FetcherOffset(offset.scn, null, offset.commitScn, offset.isTransactionComplete)

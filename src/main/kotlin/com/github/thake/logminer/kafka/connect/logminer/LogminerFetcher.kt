@@ -124,7 +124,7 @@ data class FetcherOffset(
     //to include the rows of the transaction.
     val lowestCommitScn = if (transactionCompleted) commitScn + 1 else commitScn
     val lowestChangeScn = if (transactionCompleted && commitScn == lastScn) lastScn + 1 else lastScn
-    fun toOffset(): Offset {
+    fun toOffset(): OracleLogOffset {
         return OracleLogOffset
                 .create(lastScn, commitScn, transactionCompleted)
     }
@@ -212,15 +212,16 @@ class LogminerFetcher(
             it.execute()
         }
         logger.info {
-            val usedLogfiles = conn.prepareStatement("SELECT COUNT(*) FROM V${'$'}LOGMNR_LOGS").use { statement ->
-                statement.executeQuery().use {
-                    if (it.next()) {
-                        it.getInt(1)
-                    } else {
-                        null
+            @Suppress("SqlResolve") val usedLogfiles =
+                conn.prepareStatement("SELECT COUNT(*) FROM V${'$'}LOGMNR_LOGS").use { statement ->
+                    statement.executeQuery().use {
+                        if (it.next()) {
+                            it.getInt(1)
+                        } else {
+                            null
+                        }
                     }
                 }
-            }
             "Monitoring $usedLogfiles Logfiles"
         }
     }
@@ -237,7 +238,7 @@ class LogminerFetcher(
         while (loadedRow == null && resultSet.next()) {
             //First check if we need to skip rows because we haven't found the initial offset
             if (!this.foundOffsetStart) {
-                var skip = skipNeeded(firstRun)
+                val skip = skipNeeded(firstRun)
                 firstRun = false
                 if (skip) {
                     continue
@@ -250,8 +251,8 @@ class LogminerFetcher(
     }
 
     private fun skipNeeded(firstRun: Boolean): Boolean {
-        var lastOpenRow = initialOffset.lastRowId ?: return false
-        var lastScn = initialOffset.lastScn
+        val lastOpenRow = initialOffset.lastRowId ?: return false
+        val lastScn = initialOffset.lastScn
         var skip = false
         val scn = resultSet.getLong(LogminerSchema.Fields.SCN)
         if (scn == lastScn) {
@@ -301,7 +302,7 @@ class LogminerFetcher(
                 resultSet.getString(LogminerSchema.Fields.SEG_OWNER),
                 resultSet.getString(LogminerSchema.Fields.TABLE_NAME)
             )
-        var sqlRedo: String = getRedoSql(resultSet)
+        val sqlRedo: String = getRedoSql(resultSet)
         val timeStamp: Timestamp = resultSet.getTimestamp(LogminerSchema.Fields.TIMESTAMP)
         val username = resultSet.getString(LogminerSchema.Fields.USERNAME)
         return if (sqlRedo.contains(LogminerSchema.TEMPORARY_TABLE)) {

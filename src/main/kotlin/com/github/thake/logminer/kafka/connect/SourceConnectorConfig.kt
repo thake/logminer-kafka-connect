@@ -16,30 +16,27 @@ class SourceConnectorConfig(
         parsedConfig
     )
 
-    val dbNameAlias: String
-        get() = getString(DB_NAME_ALIAS)
-
-    val topic: String
-        get() = getString(TOPIC_CONFIG)
 
     val dbName: String
-        get() = getString(DB_NAME_CONFIG)
+        get() = getString(DB_SID)
 
     val dbHostName: String
-        get() = getString(DB_HOST_NAME_CONFIG)
+        get() = getString(DB_HOST)
 
     val dbPort: Int
-        get() = getInt(DB_PORT_CONFIG)
+        get() = getInt(DB_PORT)
 
     val dbUser: String
-        get() = getString(DB_USER_CONFIG)
+        get() = getString(DB_USERNAME)
 
-    val dbUserPassword: String
-        get() = getString(DB_USER_PASSWORD_CONFIG)
+    val dbPassword: String
+        get() = getString(DB_PASSWORD)
 
+    val topicPrefix: String
+        get() = getString(TOPIC_PREFIX)
 
     val whitelistedTables: List<String>
-        get() = getString(TABLE_WHITELIST).split(",").map { it.trim() }
+        get() = getString(MONITORED_TABLES).split(",").map { it.trim() }
 
     val logMinerSelectors: List<LogMinerSelector>
         get() = whitelistedTables.map {
@@ -65,68 +62,56 @@ class SourceConnectorConfig(
         get() = getString(RECORD_PREFIX)
 
     companion object {
-        const val DB_NAME_ALIAS = "db.name.alias"
-        const val TOPIC_CONFIG = "topic"
-        const val DB_NAME_CONFIG = "db.name"
-        const val DB_HOST_NAME_CONFIG = "db.hostname"
-        const val DB_PORT_CONFIG = "db.port"
-        const val DB_USER_CONFIG = "db.user"
-        const val DB_USER_PASSWORD_CONFIG = "db.user.password"
-        const val TABLE_WHITELIST = "table.whitelist"
+        const val DB_SID = "db.name"
+        const val DB_HOST = "db.hostname"
+        const val DB_PORT = "db.port"
+        const val DB_USERNAME = "db.user"
+        const val DB_PASSWORD = "db.user.password"
+        const val MONITORED_TABLES = "table.whitelist"
         const val DB_FETCH_SIZE = "db.fetch.size"
         const val START_SCN = "start.scn"
+        const val TOPIC_PREFIX = "topic.prefix"
         const val RECORD_PREFIX = "record.prefix"
         const val BATCH_SIZE = "batch.size"
         fun conf(): ConfigDef {
             return ConfigDef()
                     .define(
-                        DB_NAME_ALIAS,
+                        DB_SID,
                         ConfigDef.Type.STRING,
                         Importance.HIGH,
-                        "Db Name Alias"
+                        "Database SID"
                     )
                     .define(
-                        TOPIC_CONFIG,
+                        DB_HOST,
                         ConfigDef.Type.STRING,
                         Importance.HIGH,
-                        "Topic"
+                        "Database hostname"
                     )
                     .define(
-                        DB_NAME_CONFIG,
-                        ConfigDef.Type.STRING,
-                        Importance.HIGH,
-                        "Db Name"
-                    )
-                    .define(
-                        DB_HOST_NAME_CONFIG,
-                        ConfigDef.Type.STRING,
-                        Importance.HIGH,
-                        "Db HostName"
-                    )
-                    .define(
-                        DB_PORT_CONFIG,
+                        DB_PORT,
                         ConfigDef.Type.INT,
                         Importance.HIGH,
-                        "Db Port"
+                        "Database port (usually 1521)"
                     )
                     .define(
-                        DB_USER_CONFIG,
+                        DB_USERNAME,
                         ConfigDef.Type.STRING,
                         Importance.HIGH,
-                        "Db User"
+                        "Database user"
                     )
                     .define(
-                        DB_USER_PASSWORD_CONFIG,
+                        DB_PASSWORD,
                         ConfigDef.Type.STRING,
                         Importance.HIGH,
-                        "Db User Password"
+                        "Database password"
                     )
                     .define(
-                        TABLE_WHITELIST,
+                        MONITORED_TABLES,
                         ConfigDef.Type.STRING,
                         "",
                         Importance.HIGH,
-                        "Tables will be mined"
+                        "Tables that should be monitored, separated by ','. Tables have to be specified with schema. You can also just" +
+                                "specify a schema to indicate that all tables within that schema should be monitored. Examples: 'MY_USER.TABLE, OTHER_SCHEMA'."
                     )
                     .define(
                         BATCH_SIZE,
@@ -140,20 +125,30 @@ class SourceConnectorConfig(
                         ConfigDef.Type.INT,
                         null,
                         Importance.LOW,
-                        "JDBC result set prefetch size. If not set, it will be defaulted to batch.size"
+                        "JDBC result set prefetch size. If not set, it will be defaulted to batch.size. The fetch" +
+                                " should not be smaller than the batch size."
                     )
                     .define(
                         START_SCN,
                         ConfigDef.Type.LONG,
+                        0L,
                         Importance.LOW,
-                        "Start SCN"
+                        "Start SCN, if set to 0 an initial intake from the tables will be performed."
                     )
                     .define(
                         RECORD_PREFIX,
                         ConfigDef.Type.STRING,
                         "",
                         Importance.HIGH,
-                        "Prefix of the subject record"
+                        "Prefix of the subject record. If you're using an Avro converter, this will be the namespace."
+                    )
+                    .define(
+                        TOPIC_PREFIX,
+                        ConfigDef.Type.STRING,
+                        "",
+                        Importance.MEDIUM,
+                        "Prefix for the topic. Each monitored table will be written to a separate topic. If you want to change" +
+                                "this behaviour, you can add a RegexRouter transform."
                     )
         }
     }

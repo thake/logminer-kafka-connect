@@ -2,8 +2,8 @@ package com.github.thake.logminer.kafka.connect
 
 import java.sql.Connection
 
-interface Source : AutoCloseable {
-    fun getOffset(): Offset
+interface Source<T : Offset?> : AutoCloseable {
+    fun getOffset(): T
     fun maybeStartQuery(db: Connection)
     fun poll(): List<PollResult>
 }

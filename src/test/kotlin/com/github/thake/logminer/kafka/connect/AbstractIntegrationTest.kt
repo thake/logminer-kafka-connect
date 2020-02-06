@@ -1,10 +1,7 @@
 package com.github.thake.logminer.kafka.connect
 
-import com.github.thake.logminer.kafka.connect.logminer.LogminerConfiguration
 import com.github.thake.logminer.kafka.connect.logminer.LogminerSource
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.testcontainers.containers.OracleContainer
 import org.testcontainers.junit.jupiter.Container
 import java.sql.Connection
@@ -13,44 +10,21 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.time.LocalDate
 
-enum class COLUMNS {
+enum class Columns {
     ID, TIME, STRING, integer, long, date
 }
 
 const val OWNER = "SIT"
 const val TABLE_NAME = "TEST_TAB"
-val FULL_TABLE_NAME = TableId(OWNER, TABLE_NAME)
+val STANDARD_TABLE = TableId(OWNER, TABLE_NAME)
+val SECOND_TABLE = TableId(OWNER, "SECOND_TAB")
 
 abstract class AbstractIntegrationTest {
-    protected lateinit var cdcSource: LogminerSource
 
     @Container
-    private val oracle: OracleContainer =
+    protected val oracle: OracleContainer =
         OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript("InitTestTable.sql").withReuse(false)
 
-    @BeforeEach
-    fun setupCdcSource() {
-        cdcSource = createCdcSource()
-    }
-
-    @AfterEach
-    fun tearDownCdcSource() {
-        cdcSource.close()
-    }
-
-    protected fun createCdcSource(offset: OracleLogOffset = OracleLogOffset.create(0, 0, true)) =
-        LogminerSource(
-            config = LogminerConfiguration(
-                listOf(
-                    TableSelector(
-                        OWNER,
-                        TABLE_NAME
-                    )
-                )
-            ),
-            offset = offset,
-            schemaService = SchemaService()
-        )
 
     fun openConnection(): Connection = oracle.createConnection("")
 
@@ -58,8 +32,8 @@ abstract class AbstractIntegrationTest {
         return this.prepareStatement(sql).use { it.executeUpdate() }
     }
 
-    protected fun Connection.insertRow(id: Int) {
-        this.prepareStatement("INSERT INTO SIT.TEST_TAB VALUES (?,?,?,?,?,?)").use {
+    protected fun Connection.insertRow(id: Int, table: TableId) {
+        this.prepareStatement("INSERT INTO ${table.fullName} VALUES (?,?,?,?,?,?)").use {
             it.setInt(1, id)
             it.setTimestamp(2, Timestamp.from(Instant.now()))
             it.setString(3, "Test")
@@ -70,16 +44,30 @@ abstract class AbstractIntegrationTest {
         }
     }
 
+    protected fun Connection.insertRow(id: Int) {
+        insertRow(id, STANDARD_TABLE)
+    }
+
     protected fun assertContainsOnlySpecificOperationForIds(
         toCheck: List<PollResult>,
         idRange: IntRange,
-        operation: Operation
+        operation: Operation,
+        table: TableId = STANDARD_TABLE
     ) {
-        var i = 0
+        assertContainsSpecificOperationForIds(toCheck, idRange, operation, table)
+        assertEquals(idRange.count(), toCheck.size)
+    }
+
+    protected fun assertContainsSpecificOperationForIds(
+        toCheck: List<PollResult>,
+        idRange: IntRange,
+        operation: Operation,
+        table: TableId = STANDARD_TABLE
+    ) {
         idRange.forEach { id ->
             //Find it in the records
             val record = toCheck.map { it.cdcRecord }.singleOrNull {
-                val correctOperationAndName = it.operation == operation && FULL_TABLE_NAME == it.table
+                val correctOperationAndName = it.operation == operation && table == it.table
                 correctOperationAndName && when (operation) {
                     Operation.INSERT -> it.after != null && it.before == null && it.after!!["ID"] == id
                     Operation.UPDATE -> it.after != null && it.before != null && it.before!!["ID"] == id
@@ -87,10 +75,10 @@ abstract class AbstractIntegrationTest {
                     else -> throw IllegalArgumentException("Operations of state INSERT, UPDATE and DELETE are only supported")
                 }
             }
-            assertNotNull(record, "Couldn't find a matching insert row for $id")
-            i++
+            assertNotNull(record, "Couldn't find a matching insert row for $id in table $table and operation $operation")
+
         }
-        assertEquals(i, toCheck.size)
+
     }
 
     protected fun LogminerSource.getResults(conn: Connection): List<PollResult> {
@@ -108,7 +96,7 @@ abstract class AbstractIntegrationTest {
 
     protected fun assertAllColumnsContained(valueMap: Map<String, Any?>?) {
         assertNotNull(valueMap)
-        val upperCaseColumns = COLUMNS.values().map { it.name }
+        val upperCaseColumns = Columns.values().map { it.name }
         val keys = valueMap!!.keys
         val leftOverKeys = upperCaseColumns.toMutableList().apply { removeAll(keys) }
         assertTrue(leftOverKeys.isEmpty(), "Some columns are missing: $leftOverKeys")

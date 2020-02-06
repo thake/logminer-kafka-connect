@@ -37,12 +37,22 @@ class OracleLogOffset(
 }
 
 class SelectOffset(override val map: Map<String, Any?>) : Offset() {
-    val table: String by map
+    val table: TableId
+        get() = TableId(map["owner"] as String, map["table"] as String)
     val scn: Long by map
     val rowId: String by map
+    fun toOracleLogOffset() = OracleLogOffset.create(scn, scn, false)
 
     companion object {
-        fun create(scn: Long, commitScn: Long? = null, rowId: String? = null) =
-            OracleLogOffset(mapOf(TYPE_KEY to SELECT_TYPE, "scn" to scn, "commitScn" to commitScn, "rowId" to rowId))
+        fun create(scn: Long, table: TableId, rowId: String) =
+            SelectOffset(
+                mapOf(
+                    TYPE_KEY to SELECT_TYPE,
+                    "scn" to scn,
+                    "table" to table.table,
+                    "owner" to table.owner,
+                    "rowId" to rowId
+                )
+            )
     }
 }

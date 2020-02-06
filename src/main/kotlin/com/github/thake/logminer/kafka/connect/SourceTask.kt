@@ -1,5 +1,6 @@
 package com.github.thake.logminer.kafka.connect
 
+import com.github.thake.logminer.kafka.connect.initial.SelectSource
 import com.github.thake.logminer.kafka.connect.logminer.LogminerConfiguration
 import com.github.thake.logminer.kafka.connect.logminer.LogminerSource
 import mu.KotlinLogging
@@ -23,66 +24,105 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
             val dbUri = "${dbHostName}:${dbPort}/${dbName}"
             DriverManager.getConnection(
                 "jdbc:oracle:thin:@$dbUri",
-                dbUser, dbUserPassword
+                dbUser, dbPassword
             ).also {
                 logger.info { "Connected to database at $dbUri" }
             }
         }
     }
-    var offset: Offset
+    var offset: Offset?
     private val schemaService: SchemaService by lazy {
         SchemaService(config.recordPrefix)
     }
-    private var source: Source
+    private var source: Source<out Offset?>
     private val sourcePartition = Collections.singletonMap(TaskConstants.LOG_MINER_OFFSET, config.dbName)
 
     init {
+        fun getTablesForOwner(owner: String): List<TableId> {
+            return connection.metaData.getTables(null, owner, null, arrayOf("TABLE")).use {
+                val result = mutableListOf<TableId>()
+                while (it.next()) {
+                    result.add(TableId(owner, it.getString(3)))
+                }
+                result
+            }
+        }
+
+        fun getTablesToFetch(): List<TableId> {
+            return config.logMinerSelectors.flatMap {
+                when (it) {
+                    is TableSelector -> Collections.singleton(TableId(it.owner, it.tableName))
+                    is SchemaSelector -> getTablesForOwner(it.owner)
+                }
+            }
+        }
+
+        fun getInitialSource(offset: Offset?): Source<out Offset?> {
+            return when (offset) {
+                is OracleLogOffset -> LogminerSource(
+                    LogminerConfiguration(
+                        config.logMinerSelectors,
+                        config.batchSize,
+                        config.dbFetchSize
+                    ), schemaService, offset
+                )
+                null, is SelectOffset ->
+                    SelectSource(config.batchSize, getTablesToFetch(), schemaService, offset as? SelectOffset)
+            }
+        }
+
+        fun createOffsetFromConfig(): Offset? {
+            return if (config.startScn > 0) {
+                OracleLogOffset.create(config.startScn, config.startScn, false)
+            } else {
+                null
+            }
+        }
+
         val offsetMap = context.offsetStorageReader()
                 .offset(
                     sourcePartition
                 ) ?: Collections.emptyMap()
-        offset = Offset.create(offsetMap) ?: OracleLogOffset.create(config.startScn, config.startScn, false)
-        source = getNextSource()
+        offset = Offset.create(offsetMap) ?: createOffsetFromConfig()
+        source = getInitialSource(offset)
     }
 
     private val connectSchemaFactory = ConnectSchemaFactory(config.recordPrefix)
 
-
-    private fun getNextSource(): Source {
-        return offset.let { offset ->
-            when (offset) {
-                is OracleLogOffset -> if (source is LogminerSource) {
-                    source
-                } else {
-                    source.close()
-                    LogminerSource(
-                        LogminerConfiguration(
-                            config.logMinerSelectors,
-                            config.batchSize,
-                            config.dbFetchSize
-                        ), schemaService, offset
-                    )
-                }
-                is SelectOffset -> source
-            }
-        }
+    private fun createLogminerSource(): LogminerSource {
+        val selectSource = source as? SelectSource
+        return LogminerSource(
+            LogminerConfiguration(
+                config.logMinerSelectors,
+                config.batchSize,
+                config.dbFetchSize
+            ),
+            schemaService,
+            selectSource?.getOffset()?.toOracleLogOffset() ?: OracleLogOffset.create(config.startScn, config.startScn, false)
+        )
     }
 
-    private fun determineTopic(record: CdcRecord) =
-        with(config) {
-            when (topic) {
-                "" -> "$dbNameAlias.${record.table.fullName}"
-                else -> topic
-            }
-        }
+
+    private fun determineTopic(record: CdcRecord) = config.topicPrefix + record.table.fullName
 
     fun poll(): List<SourceRecord> {
         logger.debug { "Polling database for new changes ..." }
-        source.maybeStartQuery(connection)
-        val result = source.poll()
-        //Advance the offset and source
-        offset = source.getOffset()
-        source = getNextSource()
+        fun doPoll(): List<PollResult> {
+            source.maybeStartQuery(connection)
+            val result = source.poll()
+            //Advance the offset and source
+            offset = source.getOffset()
+            return result
+        }
+
+        var result = doPoll()
+        if (source is SelectSource && result.isEmpty()) {
+            val logminerSource = createLogminerSource()
+            logger
+                    .info { "Initial import succeeded. Starting to read the archivelog from scn ${logminerSource.getOffset().commitScn}" }
+            source = logminerSource
+            result = doPoll()
+        }
         //Convert the records to SourceRecords
         return result.mapNotNull {
             try {
@@ -124,7 +164,7 @@ class SourceTask : SourceTask() {
 
     override fun start(map: Map<String, String>) {
         state = StartedState(SourceConnectorConfig(map), context).apply {
-            logger.info { "Oracle Kafka Connector is starting on ${config.dbNameAlias}" }
+            logger.info { "Oracle Kafka Connector is starting" }
             try {
                 logger.debug { "Starting LogMiner Session" }
                 this.connection

@@ -5,6 +5,7 @@ import org.apache.kafka.connect.data.Decimal
 import org.apache.kafka.connect.data.SchemaBuilder
 import org.apache.kafka.connect.data.Timestamp
 import java.math.BigDecimal
+import java.sql.ResultSet
 import java.sql.Types
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -17,65 +18,77 @@ const val NUMERIC_TYPE_SCALE_LOW = -84
 sealed class SchemaType<T> {
     abstract fun createSchemaBuilder(): SchemaBuilder
     abstract fun convert(str: String): T
+    abstract fun extract(index: Int, resultSet: ResultSet): T?
 
     object BooleanType : SchemaType<Boolean>() {
         override fun convert(str: String): Boolean = str.toBoolean()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.bool()
         override fun toString(): String = "Boolean"
+        override fun extract(index: Int, resultSet: ResultSet): Boolean? = resultSet.getString(index)?.let { convert(it) }
+
     }
 
     object ByteType : SchemaType<Byte>() {
         override fun convert(str: String): Byte = str.toByte()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.int8()
         override fun toString(): String = "Byte"
+        override fun extract(index: Int, resultSet: ResultSet): Byte = resultSet.getByte(index)
     }
 
     object ShortType : SchemaType<Short>() {
         override fun convert(str: String) = str.toShort()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.int16()
         override fun toString(): String = "Short"
+        override fun extract(index: Int, resultSet: ResultSet): Short = resultSet.getShort(index)
     }
 
     object IntType : SchemaType<Int>() {
         override fun convert(str: String) = str.toInt()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.int32()
         override fun toString(): String = "Int"
+        override fun extract(index: Int, resultSet: ResultSet): Int = resultSet.getInt(index)
     }
 
     object LongType : SchemaType<Long>() {
         override fun convert(str: String) = str.toLong()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.int64()
         override fun toString(): String = "Long"
+        override fun extract(index: Int, resultSet: ResultSet): Long = resultSet.getLong(index)
     }
 
     object FloatType : SchemaType<Float>() {
         override fun convert(str: String) = str.toFloat()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.float32()
         override fun toString(): String = "Float"
+        override fun extract(index: Int, resultSet: ResultSet): Float = resultSet.getFloat(index)
     }
 
     object DoubleType : SchemaType<Double>() {
         override fun convert(str: String) = str.toDouble()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.float64()
         override fun toString(): String = "Double"
+        override fun extract(index: Int, resultSet: ResultSet): Double = resultSet.getDouble(index)
     }
 
     class BigDecimalType(private val scale: Int) : SchemaType<BigDecimal>() {
         override fun convert(str: String): BigDecimal = str.toBigDecimal()
         override fun createSchemaBuilder(): SchemaBuilder = Decimal.builder(scale)
         override fun toString(): String = "BigDecimal"
+        override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)
     }
 
     object StringType : SchemaType<String>() {
         override fun convert(str: String) = str
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.string()
         override fun toString(): String = "String"
+        override fun extract(index: Int, resultSet: ResultSet): String? = resultSet.getString(index)
     }
 
     object BinaryType : SchemaType<ByteArray>() {
         override fun convert(str: String) = str.toByteArray()
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.bytes()
         override fun toString(): String = "Binary"
+        override fun extract(index: Int, resultSet: ResultSet): ByteArray? = resultSet.getBytes(index)
     }
 
     object DateType : SchemaType<java.util.Date>() {
@@ -86,6 +99,8 @@ sealed class SchemaType<T> {
 
         override fun createSchemaBuilder(): SchemaBuilder = Date.builder()
         override fun toString(): String = "Date"
+        override fun extract(index: Int, resultSet: ResultSet): java.util.Date? =
+            resultSet.getDate(index)?.let { java.util.Date(it.time) }
     }
 
     object TimestampType : SchemaType<java.util.Date>() {
@@ -99,6 +114,8 @@ sealed class SchemaType<T> {
 
         override fun createSchemaBuilder(): SchemaBuilder = Timestamp.builder()
         override fun toString(): String = "Timestamp"
+        override fun extract(index: Int, resultSet: ResultSet): java.util.Date? =
+            resultSet.getTimestamp(index).let { java.util.Date(it.time) }
     }
 
 

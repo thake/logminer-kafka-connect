@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
-class OffsetIntegrationTest : AbstractIntegrationTest() {
+class OffsetIntegrationTest : AbstractCdcSourceIntegrationTest() {
     @Test
     fun testConsecutiveTransactions() {
         val first = openConnection()

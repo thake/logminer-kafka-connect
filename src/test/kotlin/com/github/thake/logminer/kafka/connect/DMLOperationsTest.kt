@@ -9,7 +9,7 @@ import java.time.ZoneId
 import java.util.*
 
 @Testcontainers
-class DMLOperationsTest : AbstractIntegrationTest() {
+class DMLOperationsTest : AbstractCdcSourceIntegrationTest() {
 
     @Test
     fun testInsertRecord() {
@@ -27,7 +27,7 @@ class DMLOperationsTest : AbstractIntegrationTest() {
         (0 until 100).forEach { conn.insertRow(it) }
         //Clear results by explicitly polling them
         cdcSource.getResults(conn)
-        conn.executeUpdate("DELETE FROM ${FULL_TABLE_NAME.fullName} WHERE id < 50")
+        conn.executeUpdate("DELETE FROM ${STANDARD_TABLE.fullName} WHERE id < 50")
         val results = cdcSource.getResults(conn)
         assertContainsOnlySpecificOperationForIds(results, 0 until 50, Operation.DELETE)
         assertAllBeforeColumnsContained(results)
@@ -39,21 +39,21 @@ class DMLOperationsTest : AbstractIntegrationTest() {
         (0 until 100).forEach { conn.insertRow(it) }
         cdcSource.getResults(conn)
         conn
-                .executeUpdate("UPDATE ${FULL_TABLE_NAME.fullName} SET string = 'AAAA', time = TIMESTAMP '2020-01-13 15:45:01', \"date\" = DATE '2020-01-13' where id < 50")
+                .executeUpdate("UPDATE ${STANDARD_TABLE.fullName} SET string = 'AAAA', time = TIMESTAMP '2020-01-13 15:45:01', \"date\" = DATE '2020-01-13' where id < 50")
         val results = cdcSource.getResults(conn)
         assertContainsOnlySpecificOperationForIds(results, 0 until 50, Operation.UPDATE)
         assertAllBeforeColumnsContained(results)
         results.forEach {
             val after = it.cdcRecord.after!!
             assertEquals(3, after.size)
-            assertEquals("AAAA", after[COLUMNS.STRING.name])
+            assertEquals("AAAA", after[Columns.STRING.name])
             assertEquals(
                 Date.from(LocalDateTime.of(2020, 1, 13, 15, 45, 1).atZone(ZoneId.systemDefault()).toInstant()),
-                after[COLUMNS.TIME.name]
+                after[Columns.TIME.name]
             )
             assertEquals(
                 Date.from(LocalDate.of(2020, 1, 13).atStartOfDay(ZoneId.systemDefault()).toInstant()),
-                after[COLUMNS.date.name]
+                after[Columns.date.name]
             )
         }
     }

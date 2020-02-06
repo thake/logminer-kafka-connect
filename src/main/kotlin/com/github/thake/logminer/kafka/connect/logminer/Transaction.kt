@@ -160,18 +160,18 @@ private sealed class TransactionStorage {
         private val appender: ExcerptAppender = queue.acquireAppender()
         private var trailer: ExcerptTailer? = null
 
-        override fun addChange(record: LogminerRow.Change) {
+        override fun addChange(change: LogminerRow.Change) {
             appender.writeDocument {
                 with(it) {
-                    valueOut.int64(record.rowIdentifier.scn)
-                    valueOut.text(record.rowIdentifier.rowId)
-                    valueOut.text(record.sqlRedo)
-                    valueOut.text(record.transaction)
-                    valueOut.text(record.username)
-                    valueOut.text(record.operation.name)
-                    valueOut.text(record.table.owner)
-                    valueOut.text(record.table.table)
-                    valueOut.int64(record.timestamp.time)
+                    valueOut.int64(change.rowIdentifier.scn)
+                    valueOut.text(change.rowIdentifier.rowId)
+                    valueOut.text(change.sqlRedo)
+                    valueOut.text(change.transaction)
+                    valueOut.text(change.username)
+                    valueOut.text(change.operation.name)
+                    valueOut.text(change.table.owner)
+                    valueOut.text(change.table.table)
+                    valueOut.int64(change.timestamp.time)
                 }
             }
         }

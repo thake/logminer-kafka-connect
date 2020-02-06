@@ -12,3 +12,14 @@ create table SIT.TEST_TAB
     "long"    NUMBER(14),
     "date"    date      not null
 );
+create table SIT.SECOND_TAB
+(
+    id        NUMBER(8)
+        constraint SECOND_TAB_pk
+            primary key,
+    time      TIMESTAMP not null,
+    string    VARCHAR2(255),
+    "integer" NUMBER(6) not null,
+    "long"    NUMBER(14),
+    "date"    date      not null
+);
