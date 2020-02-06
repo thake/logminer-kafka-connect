@@ -16,7 +16,7 @@ Planned features:
 https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm#i1014687 for more information.
 
 
-##Initial Import
+## Initial Import
 If the start SCN is not set or set to 0, logminer kafka connect will query
 the configured tables for an initial import. During the initial import, no
 DDL statements should be executed against the database. Otherwise the initial import will
@@ -26,12 +26,12 @@ To support initial import, database flashback queries need to be enabled on the 
 
 All rows that are in the table at time of initial import will be treated as "INSERT" changes.
 
-##Change Types
+## Change Types
 ###INSERT
 ###UPDATE
 ###DELETE
 
-##Configuration
+## Configuration
   - `db.hostname`  
     Database hostname
     
