@@ -48,7 +48,7 @@ class TableFetcher(val conn: Connection, val fetcherOffset: FetcherOffset, val s
                 timestamp = timestamp,
                 transaction = "NOT AVAILABLE",
                 table = fetcherOffset.table,
-                operation = Operation.INSERT,
+                operation = Operation.READ,
                 before = null,
                 after = values,
                 dataSchema = schemaDefinition.kafkaSchema,

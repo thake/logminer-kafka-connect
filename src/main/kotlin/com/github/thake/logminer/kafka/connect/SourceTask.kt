@@ -21,13 +21,33 @@ object StoppedState : TaskState()
 data class StartedState(val config: SourceConnectorConfig, val context: SourceTaskContext) : TaskState() {
     val connection: Connection by lazy {
         with(config) {
-            val dbUri = "${dbHostName}:${dbPort}/${dbName}"
-            DriverManager.getConnection(
-                "jdbc:oracle:thin:@$dbUri",
-                dbUser, dbPassword
-            ).also {
-                logger.info { "Connected to database at $dbUri" }
+            val dbUri = "${dbHostName}:${dbPort}/${dbSid}"
+            fun openConnection(): Connection {
+                return DriverManager.getConnection(
+                    "jdbc:oracle:thin:@$dbUri",
+                    dbUser, dbPassword
+                ).also {
+                    logger.info { "Connected to database at $dbUri" }
+                }
             }
+
+            var currentAttempt = 0
+            var connection: Connection? = null
+            while (currentAttempt < dbAttempts && connection == null) {
+                if (currentAttempt > 0) {
+                    logger.info { "Waiting ${dbBackoff.toMillis()} ms before next attempt to acquire a connection" }
+                    Thread.sleep(dbBackoff.toMillis())
+                }
+                currentAttempt++
+                try {
+                    connection = openConnection()
+                } catch (e: SQLException) {
+                    logger.error { "Couldn't connect to database with url $dbUri. Attempt $currentAttempt." }
+
+                }
+            }
+            connection ?: throw SQLException("Couldn't initialize Connection to $dbUri after $dbAttempts attempts.")
+
         }
     }
     var offset: Offset?
@@ -103,7 +123,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
     }
 
 
-    private fun determineTopic(record: CdcRecord) = config.topicPrefix + record.table.fullName
+    private fun determineTopic(record: CdcRecord) = "${config.dbName}.${record.table.owner}.${record.table.table}"
 
     fun poll(): List<SourceRecord> {
         logger.debug { "Polling database for new changes ..." }
@@ -134,7 +154,9 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
             }
         }.also {
             if (it.isEmpty()) {
-                logger.debug { "No new changes found." }
+                logger
+                        .debug { "No new changes found. Waiting ${config.pollInterval.toMillis()} ms until next poll attempt." }
+                Thread.sleep(config.pollInterval.toMillis())
             } else {
                 logger.info { "Found ${it.size} new changes. Submitting them to kafka." }
             }

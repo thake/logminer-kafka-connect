@@ -3,6 +3,7 @@ package com.github.thake.logminer.kafka.connect
 import org.apache.kafka.common.config.AbstractConfig
 import org.apache.kafka.common.config.ConfigDef
 import org.apache.kafka.common.config.ConfigDef.Importance
+import java.time.Duration
 
 sealed class LogMinerSelector
 data class TableSelector(val owner: String, val tableName: String) : LogMinerSelector()
@@ -17,7 +18,7 @@ class SourceConnectorConfig(
     )
 
 
-    val dbName: String
+    val dbSid: String
         get() = getString(DB_SID)
 
     val dbHostName: String
@@ -32,14 +33,14 @@ class SourceConnectorConfig(
     val dbPassword: String
         get() = getString(DB_PASSWORD)
 
-    val topicPrefix: String
-        get() = getString(TOPIC_PREFIX)
+    val dbName: String
+        get() = getString(DB_NAME)
 
-    val whitelistedTables: List<String>
+    val monitoredTables: List<String>
         get() = getString(MONITORED_TABLES).split(",").map { it.trim() }
 
     val logMinerSelectors: List<LogMinerSelector>
-        get() = whitelistedTables.map {
+        get() = monitoredTables.map {
             val parts = it.split(".")
             if (parts.size > 1) {
                 TableSelector(parts[0], parts[1])
@@ -61,20 +62,39 @@ class SourceConnectorConfig(
     val recordPrefix: String
         get() = getString(RECORD_PREFIX)
 
+    val pollInterval: Duration
+        get() = Duration.ofMillis(getLong(POLL_INTERVAL_MS))
+
+    val dbBackoff: Duration
+        get() = Duration.ofMillis(getLong(DB_BACKOFF_MS))
+
+    val dbAttempts: Int
+        get() = getInt(DB_ATTEMPTS)
+
     companion object {
-        const val DB_SID = "db.name"
+        const val DB_NAME = "db.name"
+        const val DB_SID = "db.sid"
         const val DB_HOST = "db.hostname"
         const val DB_PORT = "db.port"
         const val DB_USERNAME = "db.user"
         const val DB_PASSWORD = "db.user.password"
+        const val DB_ATTEMPTS = "db.attempts"
+        const val DB_BACKOFF_MS = "db.backoff.ms"
         const val MONITORED_TABLES = "table.whitelist"
         const val DB_FETCH_SIZE = "db.fetch.size"
         const val START_SCN = "start.scn"
-        const val TOPIC_PREFIX = "topic.prefix"
         const val RECORD_PREFIX = "record.prefix"
         const val BATCH_SIZE = "batch.size"
+        const val POLL_INTERVAL_MS = "poll.interval.ms"
+
         fun conf(): ConfigDef {
             return ConfigDef()
+                    .define(
+                        DB_NAME,
+                        ConfigDef.Type.STRING,
+                        Importance.HIGH,
+                        "Logical name of the database. This name will be used as a prefix for the topic. You can choose this name as you like."
+                    )
                     .define(
                         DB_SID,
                         ConfigDef.Type.STRING,
@@ -143,12 +163,25 @@ class SourceConnectorConfig(
                         "Prefix of the subject record. If you're using an Avro converter, this will be the namespace."
                     )
                     .define(
-                        TOPIC_PREFIX,
-                        ConfigDef.Type.STRING,
-                        "",
-                        Importance.MEDIUM,
-                        "Prefix for the topic. Each monitored table will be written to a separate topic. If you want to change" +
-                                "this behaviour, you can add a RegexRouter transform."
+                        DB_ATTEMPTS,
+                        ConfigDef.Type.INT,
+                        3,
+                        Importance.LOW,
+                        "Maximum number of attempts to retrieve a valid JDBC connection."
+                    )
+                    .define(
+                        DB_BACKOFF_MS,
+                        ConfigDef.Type.LONG,
+                        10000L,
+                        Importance.LOW,
+                        "Backoff time in milliseconds between connection attempts."
+                    )
+                    .define(
+                        POLL_INTERVAL_MS,
+                        ConfigDef.Type.LONG,
+                        500L,
+                        Importance.LOW,
+                        "Positive integer value that specifies the number of milliseconds the connector should wait after a polling attempt didn't retrieve any results."
                     )
         }
     }

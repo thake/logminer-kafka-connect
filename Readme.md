@@ -8,6 +8,8 @@ Currently supported features:
 - Insert, Update and Delete changes will be tracked on configured tables
 - Logminer without "CONTINUOUS_MINE", thus in theory being compatible with Oracle 19c (not tested)
 - Initial import of the current table state
+- Only based on Oracle features that are available in Oracle XE (and thus available in all Oracle versions). No
+Oracle GoldenGate license required!
 
 Planned features:
 - More documentation :)
@@ -27,9 +29,37 @@ To support initial import, database flashback queries need to be enabled on the 
 All rows that are in the table at time of initial import will be treated as "INSERT" changes.
 
 ## Change Types
-###INSERT
-###UPDATE
-###DELETE
+The change types are compatible to change types published by the debezium (https://debezium.io/) project.
+Thus it is easy to migrate to the official debezium Oracle plugin ones it reaches a stable state.
+The following source fields will be provided:
+  - `version`  
+     Version of this component
+       - Type: string
+       - Value: '1.0'
+  - `connector`  
+     Name of this connector.
+       - Type: string
+       - Value: 'logminer-kafka-connect'
+  - `ts_ms`  
+     Timestamp of the change in the source database.
+       - Type: long
+       - Logical Name: org.apache.kafka.connect.data.Timestamp
+  - `scn`  
+     SCN number of the change. For the initial import this is the scn of the las update to the row.
+       - Type: long
+  - `txId`  
+     Transaction in which the change occurred in the source database. For the initial import, this field is always null.
+       - Type: string (optional)       
+  - `table`  
+     Table in the source database for which the change was recorded.
+       - Type: string 
+  - `schema`  
+     Schema in the source database in which the change was recorded.
+      - Type: string
+  - `user`  
+     The user that triggered the change
+       - Type: string (optional)
+
 
 ## Configuration
   - `db.hostname`  

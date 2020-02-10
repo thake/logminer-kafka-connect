@@ -6,20 +6,27 @@ import org.apache.kafka.connect.errors.ConnectException
 import org.apache.kafka.connect.source.SourceConnector
 import java.util.*
 
-class SourceConnector : SourceConnector() {
+class LogminerSourceConnector : SourceConnector() {
     private lateinit var config: SourceConnectorConfig
+
+    companion object {
+        const val version = "1.0"
+        const val name = "logminer-kafka-connect"
+
+    }
+
     override fun version(): String {
-        return "1.0"
+        return LogminerSourceConnector.version
     }
 
     override fun start(map: Map<String, String>) {
         config = SourceConnectorConfig(map)
         val dbName: String = config.dbName
         if (dbName == "") {
-            throw ConnectException("Missing Db Name property")
+            throw ConnectException("Missing DB logical name property")
         }
-        if (config.whitelistedTables.isEmpty()) {
-            throw ConnectException("Could not find schema or table entry for connector to capture")
+        if (config.monitoredTables.isEmpty()) {
+            throw ConnectException("No table or schema to be monitored specified")
         }
     }
 
