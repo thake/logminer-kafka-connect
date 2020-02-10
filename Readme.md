@@ -4,6 +4,17 @@ Logminer Kafka Connect is a CDC Kafka Connect source for Oracle Databases (teste
 
 Changes are extracted from the Archivelog using [Oracle Logminer](https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm). 
 
+- [Logminer Kafka Connect](#logminer-kafka-connect)
+  * [Features](#features)
+  * [Initial Import](#initial-import)
+  * [Change Types](#change-types)
+    + [Value Struct](#value-struct)
+    + [Source struct](#source-struct)
+  * [Configuration](#configuration)
+  * [Oracle Database Configuration Requirements](#oracle-database-configuration-requirements)
+
+## Features
+
 Currently supported features:
 - Insert, Update and Delete changes will be tracked on configured tables
 - Logminer without "CONTINUOUS_MINE", thus in theory being compatible with Oracle 19c (not tested)
