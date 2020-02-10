@@ -41,7 +41,6 @@ dependencies {
 
 tasks {
     named<ShadowJar>("shadowJar") {
-        archiveBaseName.set("kafka-connect-oracle")
         mergeServiceFiles()
     }
 }
