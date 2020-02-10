@@ -115,7 +115,7 @@ sealed class SchemaType<T> {
         override fun createSchemaBuilder(): SchemaBuilder = Timestamp.builder()
         override fun toString(): String = "Timestamp"
         override fun extract(index: Int, resultSet: ResultSet): java.util.Date? =
-            resultSet.getTimestamp(index).let { java.util.Date(it.time) }
+            resultSet.getTimestamp(index)?.let { java.util.Date(it.time) }
     }
 
 
