@@ -59,9 +59,6 @@ class SourceConnectorConfig(
         get() = getLong(START_SCN) ?: 0
 
 
-    val recordPrefix: String
-        get() = getString(RECORD_PREFIX)
-
     val pollInterval: Duration
         get() = Duration.ofMillis(getLong(POLL_INTERVAL_MS))
 
@@ -83,7 +80,6 @@ class SourceConnectorConfig(
         const val MONITORED_TABLES = "table.whitelist"
         const val DB_FETCH_SIZE = "db.fetch.size"
         const val START_SCN = "start.scn"
-        const val RECORD_PREFIX = "record.prefix"
         const val BATCH_SIZE = "batch.size"
         const val POLL_INTERVAL_MS = "poll.interval.ms"
 
@@ -144,7 +140,7 @@ class SourceConnectorConfig(
                         DB_FETCH_SIZE,
                         ConfigDef.Type.INT,
                         null,
-                        Importance.LOW,
+                        Importance.MEDIUM,
                         "JDBC result set prefetch size. If not set, it will be defaulted to batch.size. The fetch" +
                                 " should not be smaller than the batch size."
                     )
@@ -152,15 +148,8 @@ class SourceConnectorConfig(
                         START_SCN,
                         ConfigDef.Type.LONG,
                         0L,
-                        Importance.LOW,
-                        "Start SCN, if set to 0 an initial intake from the tables will be performed."
-                    )
-                    .define(
-                        RECORD_PREFIX,
-                        ConfigDef.Type.STRING,
-                        "",
                         Importance.HIGH,
-                        "Prefix of the subject record. If you're using an Avro converter, this will be the namespace."
+                        "Start SCN, if set to 0 an initial intake from the tables will be performed."
                     )
                     .define(
                         DB_ATTEMPTS,
@@ -179,7 +168,7 @@ class SourceConnectorConfig(
                     .define(
                         POLL_INTERVAL_MS,
                         ConfigDef.Type.LONG,
-                        500L,
+                        2000L,
                         Importance.LOW,
                         "Positive integer value that specifies the number of milliseconds the connector should wait after a polling attempt didn't retrieve any results."
                     )

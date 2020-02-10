@@ -16,7 +16,6 @@ Planned features:
 - Reading schema changes from the Archive-Log. Currently the online catalog is used. See 
 https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm#i1014687 for more information.
 
-
 ## Initial Import
 If the start SCN is not set or set to 0, logminer kafka connect will query
 the configured tables for an initial import. During the initial import, no
@@ -95,6 +94,9 @@ The following source fields will be provided:
 
 
 ## Configuration
+You can find an example configuration under [example-configuration.properties](example-configuration.properties).
+
+The following configuration parameter are available:
   - `db.hostname`  
     Database hostname
     
@@ -102,7 +104,8 @@ The following source fields will be provided:
       - Importance: high
 
   - `db.name`  
-    Database SID
+    Logical name of the database. This name will be used as a prefix for
+    the topic. You can choose this name as you like.
     
       - Type: string
       - Importance: high
@@ -111,6 +114,12 @@ The following source fields will be provided:
     Database port (usually 1521)
     
       - Type: int
+      - Importance: high
+
+  - `db.sid`  
+    Database SID
+    
+      - Type: string
       - Importance: high
 
   - `db.user`  
@@ -132,12 +141,12 @@ The following source fields will be provided:
       - Default: 1000
       - Importance: high
 
-  - `record.prefix`  
-    Prefix of the subject record. If you're using an Avro converter,
-    this will be the namespace.
+  - `start.scn`  
+    Start SCN, if set to 0 an initial intake from the tables will be
+    performed.
     
-      - Type: string
-      - Default: ""
+      - Type: long
+      - Default: 0
       - Importance: high
 
   - `table.whitelist`  
@@ -150,29 +159,48 @@ The following source fields will be provided:
       - Default: ""
       - Importance: high
 
-  - `topic.prefix`  
-    Prefix for the topic. Each monitored table will be written to a
-    separate topic. If you want to changethis behaviour, you can add a
-    RegexRouter transform.
-    
-      - Type: string
-      - Default: ""
-      - Importance: medium
-
   - `db.fetch.size`  
     JDBC result set prefetch size. If not set, it will be defaulted to
     batch.size. The fetch should not be smaller than the batch size.
     
       - Type: int
       - Default: null
+      - Importance: medium
+
+  - `db.attempts`  
+    Maximum number of attempts to retrieve a valid JDBC connection.
+    
+      - Type: int
+      - Default: 3
       - Importance: low
 
-  - `start.scn`  
-    Start SCN, if set to 0 an initial intake from the tables will be
-    performed.
+  - `db.backoff.ms`  
+    Backoff time in milliseconds between connection attempts.
     
       - Type: long
-      - Default: 0
+      - Default: 10000
       - Importance: low
 
-
+  - `poll.interval.ms`  
+    Positive integer value that specifies the number of milliseconds the
+    connector should wait after a polling attempt didn't retrieve any
+    results.
+    
+      - Type: long
+      - Default: 2000
+      - Importance: low
+      
+## Oracle Database Configuration Requirements
+In order for Logminer Kafka Connect to work, the database needs to be in ARCHIVELOG mode and Supplemental Logging needs to be 
+enabled with all columns. Here are the commands that need to be executed in sqlplus:
+```oraclesqlplus
+prompt Shutting down database to activate archivelog mode;
+shutdown immediate;
+startup mount;
+alter database archivelog;
+prompt Archive log activated.;
+alter database add supplemental log data (all) columns;
+prompt Activated supplemental logging with all columns.;
+prompt Starting up database;
+alter database open;
+```
