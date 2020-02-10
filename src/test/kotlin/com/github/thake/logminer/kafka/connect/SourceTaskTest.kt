@@ -63,7 +63,7 @@ class SourceTaskTest : AbstractIntegrationTest() {
                     DB_USERNAME to oracle.username,
                     DB_PASSWORD to oracle.password,
                     START_SCN to "0",
-                    MONITORED_TABLES to STANDARD_TABLE.fullName
+                    MONITORED_TABLES to STANDARD_TABLE.fullName + ", " + SECOND_TABLE.fullName
                 )
             }
         sourceTask = SourceTask()
@@ -184,7 +184,7 @@ class SourceTaskTest : AbstractIntegrationTest() {
         )
         val modifyingConnection = openConnection()
         //Initial state
-        (0 until 100).forEach { modifyingConnection.insertRow(it) }
+        (0 until 100).forEach { modifyingConnection.insertRow(it, SECOND_TABLE) }
         val result = sourceTask.poll().toMutableList()
 
         //Check that the batch size is correct

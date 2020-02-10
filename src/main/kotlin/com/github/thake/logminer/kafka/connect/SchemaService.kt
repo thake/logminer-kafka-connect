@@ -19,13 +19,14 @@ data class ColumnDefinition(
 
 data class SchemaDefinition(
     val table: TableId,
-    val kafkaSchema: Schema,
+    val valueSchema: Schema,
+    val keySchema: Schema,
     private val columnTypes: Map<String, SchemaType<out Any>>
 ) {
     fun getColumnSchemaType(columnName: String) = columnTypes[columnName]
 }
 
-class SchemaService(private val recordPrefix: String = "") {
+class SchemaService(private val nameService: ConnectNameService) {
     private val cachedSchemas: MutableMap<TableId, SchemaDefinition> = mutableMapOf()
 
     fun getSchema(dbConn: Connection, table: TableId) = cachedSchemas.getOrPut(table, { buildTableSchema(dbConn, table) })
@@ -37,9 +38,16 @@ class SchemaService(private val recordPrefix: String = "") {
     private fun buildTableSchema(dbConn: Connection, table: TableId): SchemaDefinition {
         logger.info { "Getting dictionary details for table : $table" }
 
-        val dataSchemaBuilder =
-            SchemaBuilder.struct().name(recordPrefix + table.recordName)
+        val valueSchemaBuilder =
+            SchemaBuilder.struct().name(nameService.getBeforeAfterStructName(table))
+        val keySchemaBuilder = SchemaBuilder.struct().name(nameService.getKeyRecordName(table))
         val columnTypes = mutableMapOf<String, SchemaType<out Any>>()
+        val primaryKeys = mutableSetOf<String>()
+        dbConn.metaData.getPrimaryKeys(null, table.owner, table.table).use {
+            while (it.next()) {
+                primaryKeys.add(it.getString(4))
+            }
+        }
         dbConn.metaData.getColumns(null, table.owner, table.table, null).use {
             while (it.next()) {
                 val name = it.getString(4)
@@ -51,10 +59,21 @@ class SchemaService(private val recordPrefix: String = "") {
                 val columnDef = ColumnDefinition(name, type, size, precision, nullable, doc)
                 val schemaType = SchemaType.toSchemaType(columnDef)
                 columnTypes[name] = schemaType
-                dataSchemaBuilder.field(name, createColumnSchema(columnDef, schemaType))
+                val columnSchema = createColumnSchema(columnDef, schemaType)
+                valueSchemaBuilder.field(name, columnSchema)
+                if (primaryKeys.contains(name)) {
+                    keySchemaBuilder.field(name, columnSchema)
+                }
             }
         }
-        return SchemaDefinition(table, dataSchemaBuilder.optional().build(), columnTypes)
+
+
+        return SchemaDefinition(
+            table,
+            valueSchemaBuilder.optional().build(),
+            keySchemaBuilder.optional().build(),
+            columnTypes
+        )
     }
 
     private fun createColumnSchema(column: ColumnDefinition, schemaType: SchemaType<out Any>): Schema {

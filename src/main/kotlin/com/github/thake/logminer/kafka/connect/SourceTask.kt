@@ -51,11 +51,13 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
         }
     }
     var offset: Offset?
+    val nameService: ConnectNameService = SourceDatabaseNameService(config.dbName)
     private val schemaService: SchemaService by lazy {
-        SchemaService(config.recordPrefix)
+        SchemaService(nameService)
     }
     private var source: Source<out Offset?>
     private val sourcePartition = Collections.singletonMap(TaskConstants.LOG_MINER_OFFSET, config.dbName)
+    private val connectSchemaFactory = ConnectSchemaFactory(nameService)
 
     init {
         fun getTablesForOwner(owner: String): List<TableId> {
@@ -107,7 +109,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
         source = getInitialSource(offset)
     }
 
-    private val connectSchemaFactory = ConnectSchemaFactory(config.recordPrefix)
+
 
     private fun createLogminerSource(): LogminerSource {
         val selectSource = source as? SelectSource
@@ -122,8 +124,6 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
         )
     }
 
-
-    private fun determineTopic(record: CdcRecord) = "${config.dbName}.${record.table.owner}.${record.table.table}"
 
     fun poll(): List<SourceRecord> {
         logger.debug { "Polling database for new changes ..." }
@@ -146,7 +146,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
         //Convert the records to SourceRecords
         return result.mapNotNull {
             try {
-                connectSchemaFactory.convertToSourceRecord(it, sourcePartition, determineTopic(it.cdcRecord))
+                connectSchemaFactory.convertToSourceRecord(it, sourcePartition)
             } catch (e: DataException) {
                 logger
                         .warn(e) { "Couldn't convert record $it to schema. This most probably indicates that supplemental logging is not activated for all columns. This record will be skipped." }

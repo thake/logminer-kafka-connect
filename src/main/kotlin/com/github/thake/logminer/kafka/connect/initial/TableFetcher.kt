@@ -51,7 +51,7 @@ class TableFetcher(val conn: Connection, val fetcherOffset: FetcherOffset, val s
                 operation = Operation.READ,
                 before = null,
                 after = values,
-                dataSchema = schemaDefinition.kafkaSchema,
+                dataSchema = schemaDefinition,
                 rowId = rowId
             )
             val offset = SelectOffset.create(fetcherOffset.asOfScn, fetcherOffset.table, rowId)

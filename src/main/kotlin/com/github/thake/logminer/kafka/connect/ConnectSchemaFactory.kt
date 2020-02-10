@@ -25,7 +25,7 @@ object SourceRecordFields {
     const val NAME = "name"
     private const val OWNER = "schema"
     private const val TABLE = "table"
-    const val CHANGE_USER = "user"
+    private const val CHANGE_USER = "user"
     val sourceSchema: Schema = SchemaBuilder.struct().name("source")
             .field(VERSION, Schema.STRING_SCHEMA)
             .field(CONNECTOR, Schema.STRING_SCHEMA)
@@ -37,52 +37,89 @@ object SourceRecordFields {
             .field(CHANGE_USER, Schema.OPTIONAL_STRING_SCHEMA)
             .build()
 
-    fun convert(pollResult: PollResult): Struct {
+    fun convert(cdcRecord: CdcRecord): Struct {
         return Struct(sourceSchema).put(VERSION, LogminerSourceConnector.version)
-                .put(CONNECTOR, LogminerSourceConnector.name).put(RECORD_TIMESTAMP, pollResult.cdcRecord.timestamp)
-                .put(TRANSACTION, pollResult.cdcRecord.transaction).put(SCN, pollResult.cdcRecord.scn)
-                .put(OWNER, pollResult.cdcRecord.table.owner).put(TABLE, pollResult.cdcRecord.table.table)
-                .put(CHANGE_USER, pollResult.cdcRecord.username)
+                .put(CONNECTOR, LogminerSourceConnector.name).put(RECORD_TIMESTAMP, cdcRecord.timestamp)
+                .put(TRANSACTION, cdcRecord.transaction).put(SCN, cdcRecord.scn)
+                .put(OWNER, cdcRecord.table.owner).put(TABLE, cdcRecord.table.table)
+                .put(CHANGE_USER, cdcRecord.username)
     }
 }
 
-class ConnectSchemaFactory(private val recordPrefix: String) {
+class ConnectSchemaFactory(private val nameService: ConnectNameService) {
 
 
-    fun convertToSourceRecord(pollResult: PollResult, partition: Map<String, Any?>, topic: String): SourceRecord {
-        val record = pollResult.cdcRecord
-        val name = recordPrefix + record.table.table + "ChangeRecord"
+    private fun createKeyStruct(cdcRecord: CdcRecord): Struct {
+        val schema = cdcRecord.dataSchema.keySchema
+        val struct = Struct(schema)
+        schema.fields().forEach {
+            val sourceMap = when (cdcRecord.operation) {
+                Operation.READ, Operation.INSERT ->
+                    cdcRecord.after
+                Operation.DELETE, Operation.UPDATE -> cdcRecord.before
+            }!!
+            struct.put(it.name(), sourceMap[it.name()])
+        }
+        return struct
+    }
 
-        val newSchema = SchemaBuilder.struct()
+    private fun createValue(record: CdcRecord): Pair<Schema, Struct> {
+        val name = nameService.getValueRecordName(record.table)
+        val recordConnectSchema = record.dataSchema.valueSchema
+        val valueSchema = SchemaBuilder.struct()
                 .name(name)
                 .field(CdcRecordFields.OPERATION, Schema.STRING_SCHEMA)
-                .field(CdcRecordFields.BEFORE, record.dataSchema)
-                .field(CdcRecordFields.AFTER, record.dataSchema)
+                .field(CdcRecordFields.BEFORE, recordConnectSchema)
+                .field(CdcRecordFields.AFTER, recordConnectSchema)
                 .field(CdcRecordFields.SOURCE, sourceSchema)
                 .field(CdcRecordFields.PUBLISH_TIMESTAMP, Timestamp.SCHEMA)
                 .build()
         val struct = with(record) {
             var updatedAfter = after
 
-            val sourceStruct = SourceRecordFields.convert(pollResult)
-            val recordStruct = Struct(newSchema).put(CdcRecordFields.OPERATION, operation.stringRep)
-                    .put(CdcRecordFields.SOURCE, sourceStruct)
-                    .put(CdcRecordFields.PUBLISH_TIMESTAMP, java.util.Date())
-            if (operation == Operation.UPDATE && updatedAfter != null && before != null) {
+            val sourceStruct = com.github.thake.logminer.kafka.connect.SourceRecordFields.convert(record)
+            val recordStruct = org.apache.kafka.connect.data.Struct(valueSchema)
+                    .put(com.github.thake.logminer.kafka.connect.CdcRecordFields.OPERATION, operation.stringRep)
+                    .put(com.github.thake.logminer.kafka.connect.CdcRecordFields.SOURCE, sourceStruct)
+                    .put(com.github.thake.logminer.kafka.connect.CdcRecordFields.PUBLISH_TIMESTAMP, java.util.Date())
+            if (operation == com.github.thake.logminer.kafka.connect.Operation.UPDATE && updatedAfter != null && before != null) {
                 //Enrich the after state with values from the before data set
                 val enrichedAfter = updatedAfter.toMutableMap()
                 before.forEach { enrichedAfter.putIfAbsent(it.key, it.value) }
                 updatedAfter = enrichedAfter
             }
             before?.let {
-                recordStruct.put(CdcRecordFields.BEFORE, convertDataToStruct(dataSchema, it))
+                recordStruct.put(
+                    com.github.thake.logminer.kafka.connect.CdcRecordFields.BEFORE,
+                    convertDataToStruct(recordConnectSchema, it)
+                )
             }
             updatedAfter?.let {
-                recordStruct.put(CdcRecordFields.AFTER, convertDataToStruct(dataSchema, it))
+                recordStruct.put(
+                    com.github.thake.logminer.kafka.connect.CdcRecordFields.AFTER,
+                    convertDataToStruct(recordConnectSchema, it)
+                )
             }
             recordStruct
         }
-        return SourceRecord(partition, pollResult.offset.map, topic, newSchema, struct)
+        return Pair(valueSchema, struct)
+    }
+
+    fun convertToSourceRecord(pollResult: PollResult, partition: Map<String, Any?>): SourceRecord {
+        val record = pollResult.cdcRecord
+        val topic = nameService.getTopicName(record.table)
+
+        val value = createValue(record)
+        val keyStruct = createKeyStruct(record)
+        return SourceRecord(
+            partition,
+            pollResult.offset.map,
+            topic,
+            record.dataSchema.keySchema,
+            keyStruct,
+            value.first,
+            value.second
+        )
 
     }
 

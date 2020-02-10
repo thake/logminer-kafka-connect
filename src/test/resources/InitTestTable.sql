@@ -14,9 +14,7 @@ create table SIT.TEST_TAB
 );
 create table SIT.SECOND_TAB
 (
-    id        NUMBER(8)
-        constraint SECOND_TAB_pk
-            primary key,
+    id        NUMBER(8),
     time      TIMESTAMP not null,
     string    VARCHAR2(255),
     "integer" NUMBER(6) not null,

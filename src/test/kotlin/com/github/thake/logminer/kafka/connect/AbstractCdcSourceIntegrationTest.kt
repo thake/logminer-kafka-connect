@@ -30,7 +30,7 @@ abstract class AbstractCdcSourceIntegrationTest : AbstractIntegrationTest() {
                 )
             ),
             offset = offset,
-            schemaService = SchemaService()
+            schemaService = SchemaService(SourceDatabaseNameService("A"))
         )
 
 }

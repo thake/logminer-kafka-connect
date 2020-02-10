@@ -13,7 +13,6 @@ Oracle GoldenGate license required!
 
 Planned features:
 - More documentation :)
-- Providing primary keys as keys to the Kafka messages.
 - Reading schema changes from the Archive-Log. Currently the online catalog is used. See 
 https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm#i1014687 for more information.
 
@@ -31,6 +30,40 @@ All rows that are in the table at time of initial import will be treated as "INS
 ## Change Types
 The change types are compatible to change types published by the debezium (https://debezium.io/) project.
 Thus it is easy to migrate to the official debezium Oracle plugin ones it reaches a stable state.
+The key of the kafka topic will be filled with a struct containing the primary key values of the changed row. 
+
+### Value Struct
+The value is a structure having the following fields:
+  -  `op`  
+      Operation that has been executed.
+        - Type: string
+        - Possible values:
+            - 'r' - Read on initial import
+            - 'i' - Insert
+            - 'u' - Update
+            - 'd' - Delete
+  - `before`
+     Image of the row before the operation has been executed. Contains all columns.
+       - Type: struct
+       - Only filled for the following operations:
+           - Update
+           - Delete
+  - `after`
+     Image of the row after the operation has been executed. Contains all columns.
+       - Type: struct
+       - Only filled for the following operations:
+           - Insert
+           - Read
+           - Update
+  - `ts_ms`
+     Timestamp of import as millis since epoch
+       - Type: Long
+  - `source`
+     Additional information about this change record from the source database. 
+       - Type: source
+
+### Source struct       
+
 The following source fields will be provided:
   - `version`  
      Version of this component

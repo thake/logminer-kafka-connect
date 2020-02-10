@@ -19,7 +19,8 @@ class SelectSourceTest : AbstractIntegrationTest() {
             Thread.sleep(1000)
         }
         Thread.sleep(5000)
-        selectSource = SelectSource(1000, listOf(STANDARD_TABLE, SECOND_TABLE), SchemaService(), null)
+        selectSource =
+            SelectSource(1000, listOf(STANDARD_TABLE, SECOND_TABLE), SchemaService(SourceDatabaseNameService("A")), null)
 
     }
 
@@ -34,7 +35,7 @@ class SelectSourceTest : AbstractIntegrationTest() {
         (0 until 100).forEach { conn.insertRow(it) }
         selectSource.maybeStartQuery(conn)
         val result = selectSource.poll()
-        assertContainsOnlySpecificOperationForIds(result, 0 until 100, Operation.INSERT)
+        assertContainsOnlySpecificOperationForIds(result, 0 until 100, Operation.READ)
         assertNotNull(selectSource.getOffset())
         selectSource.maybeStartQuery(conn)
         val emptyResult = selectSource.poll()
@@ -59,8 +60,8 @@ class SelectSourceTest : AbstractIntegrationTest() {
         (0 until 100).forEach { conn.insertRow(it, SECOND_TABLE) }
         selectSource.maybeStartQuery(conn)
         val result = selectSource.poll()
-        assertContainsSpecificOperationForIds(result, 0 until 100, Operation.INSERT, STANDARD_TABLE)
-        assertContainsSpecificOperationForIds(result, 0 until 100, Operation.INSERT, SECOND_TABLE)
+        assertContainsSpecificOperationForIds(result, 0 until 100, Operation.READ, STANDARD_TABLE)
+        assertContainsSpecificOperationForIds(result, 0 until 100, Operation.READ, SECOND_TABLE)
         assertEquals(200, result.size)
         assertNotNull(selectSource.getOffset())
         selectSource.maybeStartQuery(conn)
@@ -71,7 +72,7 @@ class SelectSourceTest : AbstractIntegrationTest() {
 
     @Test
     fun checkNoDirtyReads() {
-        selectSource = SelectSource(10, listOf(STANDARD_TABLE), SchemaService(), null)
+        selectSource = SelectSource(10, listOf(STANDARD_TABLE), SchemaService(SourceDatabaseNameService("A")), null)
         val conn = openConnection()
         (0 until 100).forEach { conn.insertRow(it) }
         selectSource.maybeStartQuery(conn)
@@ -79,12 +80,17 @@ class SelectSourceTest : AbstractIntegrationTest() {
         selectSource.close()
         val dirtyWriteTransaction = openConnection()
         (100 until 200).forEach { dirtyWriteTransaction.insertRow(it) }
-        selectSource = SelectSource(1000, listOf(STANDARD_TABLE), SchemaService(), selectSource.lastOffset)
+        selectSource = SelectSource(
+            1000,
+            listOf(STANDARD_TABLE),
+            SchemaService(SourceDatabaseNameService("A")),
+            selectSource.lastOffset
+        )
         selectSource.maybeStartQuery(openConnection())
         val secondResult = selectSource.poll()
         val totalResult = result.toMutableList().apply { addAll(secondResult) }
         //Committed rows of dirtyWriteTransaction should not be included in the result set.
-        assertContainsOnlySpecificOperationForIds(totalResult, 0 until 100, Operation.INSERT)
+        assertContainsOnlySpecificOperationForIds(totalResult, 0 until 100, Operation.READ)
         assertNotNull(selectSource.getOffset())
         selectSource.maybeStartQuery(conn)
         val emptyResult = selectSource.poll()

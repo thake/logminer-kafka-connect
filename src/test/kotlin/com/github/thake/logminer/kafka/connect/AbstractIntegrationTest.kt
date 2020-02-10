@@ -69,10 +69,9 @@ abstract class AbstractIntegrationTest {
             val record = toCheck.map { it.cdcRecord }.singleOrNull {
                 val correctOperationAndName = it.operation == operation && table == it.table
                 correctOperationAndName && when (operation) {
-                    Operation.INSERT -> it.after != null && it.before == null && it.after!!["ID"] == id
+                    Operation.READ, Operation.INSERT -> it.after != null && it.before == null && it.after!!["ID"] == id
                     Operation.UPDATE -> it.after != null && it.before != null && it.before!!["ID"] == id
                     Operation.DELETE -> it.after == null && it.before != null && it.before!!["ID"] == id
-                    else -> throw IllegalArgumentException("Operations of state INSERT, UPDATE and DELETE are only supported")
                 }
             }
             assertNotNull(record, "Couldn't find a matching insert row for $id in table $table and operation $operation")

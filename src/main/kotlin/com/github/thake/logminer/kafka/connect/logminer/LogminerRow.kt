@@ -53,7 +53,7 @@ sealed class LogminerRow {
                 operation,
                 transaction,
                 username,
-                schemaDefinition.kafkaSchema,
+                schemaDefinition,
                 sqlData.before,
                 sqlData.after
             )

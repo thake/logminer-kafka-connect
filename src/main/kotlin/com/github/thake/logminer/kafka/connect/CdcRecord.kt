@@ -1,6 +1,5 @@
 package com.github.thake.logminer.kafka.connect
 
-import org.apache.kafka.connect.data.Schema
 import java.sql.Timestamp
 
 data class CdcRecord(
@@ -11,7 +10,7 @@ data class CdcRecord(
     val operation: Operation,
     val transaction: String,
     val username: String?,
-    val dataSchema: Schema,
+    val dataSchema: SchemaDefinition,
     val before: Map<String, Any?>?,
     val after: Map<String, Any?>?
 )
