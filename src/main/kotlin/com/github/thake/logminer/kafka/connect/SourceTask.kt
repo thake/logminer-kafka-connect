@@ -42,7 +42,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
                 try {
                     connection = openConnection()
                 } catch (e: SQLException) {
-                    logger.error { "Couldn't connect to database with url $dbUri. Attempt $currentAttempt." }
+                    logger.error(e) { "Couldn't connect to database with url $dbUri. Attempt $currentAttempt." }
 
                 }
             }
