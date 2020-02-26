@@ -1,11 +1,14 @@
 package com.github.thake.logminer.kafka.connect
 
 import com.github.thake.logminer.kafka.connect.SourceRecordFields.sourceSchema
+import mu.KotlinLogging
 import org.apache.kafka.connect.data.Schema
 import org.apache.kafka.connect.data.SchemaBuilder
 import org.apache.kafka.connect.data.Struct
 import org.apache.kafka.connect.data.Timestamp
 import org.apache.kafka.connect.source.SourceRecord
+
+private val logger = KotlinLogging.logger {}
 
 object CdcRecordFields {
 
@@ -26,7 +29,7 @@ object SourceRecordFields {
     private const val OWNER = "schema"
     private const val TABLE = "table"
     private const val CHANGE_USER = "user"
-    val sourceSchema: Schema = SchemaBuilder.struct().name("source")
+    val sourceSchema: Schema = SchemaBuilder.struct().name(LogminerSourceConnector::class.java.`package`.name + ".Source")
             .field(VERSION, Schema.STRING_SCHEMA)
             .field(CONNECTOR, Schema.STRING_SCHEMA)
             .field(RECORD_TIMESTAMP, Timestamp.SCHEMA)

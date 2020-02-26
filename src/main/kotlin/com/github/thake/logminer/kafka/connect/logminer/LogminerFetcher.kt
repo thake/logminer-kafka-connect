@@ -124,6 +124,7 @@ data class FetcherOffset(
     //to include the rows of the transaction.
     val lowestCommitScn = if (transactionCompleted) commitScn + 1 else commitScn
     val lowestChangeScn = if (transactionCompleted && commitScn == lastScn) lastScn + 1 else lastScn
+
     fun toOffset(): OracleLogOffset {
         return OracleLogOffset
                 .create(lastScn, commitScn, transactionCompleted)
@@ -150,7 +151,7 @@ class LogminerFetcher(
         }
     }
     private val scn = initialOffset.lastScn
-    private var foundOffsetStart = false
+    private var needToSkipToOffsetStart = initialOffset.lastScn == initialOffset.lowestChangeScn
 
     private val stmt: PreparedStatement =
         conn.prepareStatement(
@@ -237,7 +238,7 @@ class LogminerFetcher(
         var firstRun = true
         while (loadedRow == null && resultSet.next()) {
             //First check if we need to skip rows because we haven't found the initial offset
-            if (!this.foundOffsetStart) {
+            if (this.needToSkipToOffsetStart) {
                 val skip = skipNeeded(firstRun)
                 firstRun = false
                 if (skip) {
@@ -259,8 +260,8 @@ class LogminerFetcher(
             val rowId = resultSet.getString(LogminerSchema.Fields.ROW_ID)
             if (rowId == lastOpenRow) {
                 //We found the last read row id, we can stop skipping
-                logger.debug { "Skipped all rows until row with ID '$rowId'(including)   in order to correctly set offset." }
-                foundOffsetStart = true
+                logger.debug { "Skipped all rows until row with ID '$rowId'(including) in order to correctly set offset." }
+                needToSkipToOffsetStart = false
             }
             //We skip this row
             skip = true
@@ -269,7 +270,7 @@ class LogminerFetcher(
         } else {
             logger
                     .warn { "Logminer result does not start with expected SCN. The archivelog containing the SCN seems to be deleted. The collected data has a gap between ${initialOffset.lastScn}  (expected) and $scn (actual lowest SCN in logs). All changes happening between those SCNs have not been processed and may be lost." }
-            foundOffsetStart = true
+            needToSkipToOffsetStart = false
         }
 
         return skip

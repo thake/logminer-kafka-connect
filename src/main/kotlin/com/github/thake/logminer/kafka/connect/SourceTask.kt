@@ -203,7 +203,7 @@ class SourceTask : SourceTask() {
             val currState = state
             return if (currState is StartedState) currState.poll() else throw IllegalStateException("Task has not been started")
         } catch (e: SQLException) {
-            logger.debug(e) { "SQLException thrown. This is most probably due to an error while stopping." }
+            logger.info(e) { "SQLException thrown. This is most probably due to an error while stopping." }
             return Collections.emptyList()
         }
     }

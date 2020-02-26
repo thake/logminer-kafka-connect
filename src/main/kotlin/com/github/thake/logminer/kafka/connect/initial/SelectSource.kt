@@ -1,8 +1,10 @@
 package com.github.thake.logminer.kafka.connect.initial
 
 import com.github.thake.logminer.kafka.connect.*
+import mu.KotlinLogging
 import java.sql.Connection
 
+private val logger = KotlinLogging.logger {}
 class SelectSource(
     private val batchSize: Int,
     private val tablesToFetch: List<TableId>,
@@ -44,6 +46,8 @@ class SelectSource(
                 it.next()
                 it.getLong(1)
             }
+        }.also {
+            logger.info { "Determined current scn of database as $it" }
         }
     }
 

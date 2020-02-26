@@ -4,15 +4,15 @@ import mu.KotlinLogging
 import org.apache.kafka.connect.data.Schema
 import org.apache.kafka.connect.data.SchemaBuilder
 import java.sql.Connection
-import java.sql.DatabaseMetaData
 
 private val logger = KotlinLogging.logger {}
 
 data class ColumnDefinition(
     val name: String,
-    val type: Int,
-    val size: Int,
-    val precision: Int?,
+    val type: String,
+    val scale: Int?,
+    val precision: Int,
+    val defaultValue: String?,
     val isNullable: Boolean,
     val doc: String?
 )
@@ -48,21 +48,48 @@ class SchemaService(private val nameService: ConnectNameService) {
                 primaryKeys.add(it.getString(4))
             }
         }
-        dbConn.metaData.getColumns(null, table.owner, table.table, null).use {
-            while (it.next()) {
-                val name = it.getString(4)
-                val precision = it.getInt(9)
-                val size = it.getInt(7)
-                val type = it.getInt(5)
-                val doc = it.getString(12)
-                val nullable = it.getInt(11) != DatabaseMetaData.columnNoNulls
-                val columnDef = ColumnDefinition(name, type, size, precision, nullable, doc)
-                val schemaType = SchemaType.toSchemaType(columnDef)
-                columnTypes[name] = schemaType
-                val columnSchema = createColumnSchema(columnDef, schemaType)
-                valueSchemaBuilder.field(name, columnSchema)
-                if (primaryKeys.contains(name)) {
-                    keySchemaBuilder.field(name, columnSchema)
+        dbConn.prepareStatement(
+            """
+            SELECT 
+                COLUMN_NAME, 
+                DATA_TYPE, 
+                DATA_LENGTH, 
+                DATA_PRECISION, 
+                DATA_SCALE, 
+                NULLABLE, 
+                DATA_DEFAULT, 
+                HIGH_VALUE,
+                COMMENTS
+            FROM SYS.ALL_TAB_COLUMNS COL LEFT JOIN SYS.ALL_COL_COMMENTS COM USING (COLUMN_NAME,OWNER,TABLE_NAME)
+            WHERE OWNER = ? AND TABLE_NAME = ?
+        """
+        ).apply {
+            setString(1, table.owner)
+            setString(2, table.table)
+        }.use {
+            it.executeQuery().use { result ->
+                while (result.next()) {
+                    val defaultValue = result.getString("DATA_DEFAULT")
+                    val name = result.getString("COLUMN_NAME")
+                    val precision = result.getInt("DATA_PRECISION")
+                    val scale = result.getInt("DATA_SCALE").let { scale ->
+                        if (result.wasNull()) {
+                            null
+                        } else {
+                            scale
+                        }
+                    }
+                    val type = result.getString("DATA_TYPE")
+                    val doc = result.getString("COMMENTS")
+                    val nullable = result.getString("NULLABLE") == "Y"
+                    val columnDef = ColumnDefinition(name, type, scale, precision, defaultValue, nullable, doc)
+                    val schemaType = SchemaType.toSchemaType(columnDef)
+                    columnTypes[name] = schemaType
+                    val columnSchema = createColumnSchema(columnDef, schemaType)
+                    valueSchemaBuilder.field(name, columnSchema)
+                    if (primaryKeys.contains(name)) {
+                        keySchemaBuilder.field(name, columnSchema)
+                    }
                 }
             }
         }
@@ -83,6 +110,14 @@ class SchemaService(private val nameService: ConnectNameService) {
         }
         if (column.doc != null) {
             builder.doc(column.doc)
+        }
+        if (column.isNullable || column.defaultValue != null) {
+            val defaultValue = if (column.defaultValue == null) {
+                null
+            } else {
+                schemaType.convertDefaultValue(column.defaultValue)
+            }
+            builder.defaultValue(defaultValue)
         }
         return builder.build()
     }
