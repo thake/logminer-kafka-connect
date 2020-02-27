@@ -135,42 +135,44 @@ sealed class SchemaType<T> {
 
     companion object {
         fun toSchemaType(columnDataType: ColumnDefinition): SchemaType<out Any> {
-            //Mapping special oracle values. -127 will be returned as precision if no precision is given (e.g. NUMBER())
-            val scale = columnDataType.scale ?: 0
-
+            val scale = columnDataType.scale
             val precision = columnDataType.precision
             return when (columnDataType.type) {
                 "BINARY_FLOAT" -> FloatType
                 "BINARY_DOUBLE" -> DoubleType
                 "NUMBER" -> {
-                    if (precision == 0 && scale == -127) {
-                        //Undefined NUMERIC -> Decimal
-                        BigDecimalType(0)
-                    } else if (precision < 19) { // fits in primitive data types.
-                        when {
-                            scale in NUMERIC_TYPE_SCALE_LOW..0 -> { // integer
-                                when {
-                                    precision > 9 -> {
-                                        LongType
-                                    }
-                                    precision > 4 -> {
-                                        IntType
-                                    }
-                                    precision > 2 -> {
-                                        ShortType
-                                    }
-                                    else -> {
-                                        ByteType
+                    when {
+                        scale == null -> {
+                            //Undefined NUMERIC -> Decimal
+                            BigDecimalType(0)
+                        }
+                        precision < 19 -> { // fits in primitive data types.
+                            when {
+                                scale in NUMERIC_TYPE_SCALE_LOW..0 -> { // integer
+                                    when {
+                                        precision > 9 -> {
+                                            LongType
+                                        }
+                                        precision > 4 -> {
+                                            IntType
+                                        }
+                                        precision > 2 -> {
+                                            ShortType
+                                        }
+                                        else -> {
+                                            ByteType
+                                        }
                                     }
                                 }
-                            }
-                            precision > 0 -> DoubleType
-                            else ->
-                                BigDecimalType(scale)
+                                precision > 0 -> DoubleType
+                                else ->
+                                    BigDecimalType(scale)
 
+                            }
                         }
-                    } else {
-                        BigDecimalType(scale)
+                        else -> {
+                            BigDecimalType(scale)
+                        }
                     }
                 }
                 "CHAR", "VARCHAR", "VARCHAR2", "NVARCHAR2", "CLOB", "NCLOB", "LONG", "NCHAR" -> StringType

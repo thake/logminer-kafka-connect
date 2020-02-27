@@ -93,6 +93,9 @@ class SchemaServiceTest : WordSpec() {
             "BigDecimal"{
                 "NUMBER(20,0)".shouldBe(SchemaType.BigDecimalType(0))
             }
+            "undefined NUMBER"{
+                "NUMBER".shouldBe(SchemaType.BigDecimalType(0))
+            }
             "Date"{
                 "DATE".shouldBe(SchemaType.DateType)
             }
