@@ -28,7 +28,6 @@ dependencies {
     implementation("net.openhft", "chronicle-queue", "5.17.40")
     implementation("io.github.microutils", "kotlin-logging", "1.7.7")
     compileOnly("org.apache.kafka", "connect-api", kafkaVersion)
-    runtimeOnly("com.oracle.ojdbc", "ojdbc8", "19.3.0.0")
     testRuntimeOnly("com.oracle.ojdbc", "ojdbc8", "19.3.0.0")
     testImplementation("org.apache.kafka", "connect-api", kafkaVersion)
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.12.5"))

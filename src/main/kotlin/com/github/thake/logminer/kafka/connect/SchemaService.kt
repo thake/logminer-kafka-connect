@@ -117,7 +117,9 @@ class SchemaService(private val nameService: ConnectNameService) {
             } else {
                 schemaType.convertDefaultValue(column.defaultValue)
             }
-            builder.defaultValue(defaultValue)
+            if (column.isNullable || defaultValue != null) {
+                builder.defaultValue(defaultValue)
+            }
         }
         return builder.build()
     }

@@ -8,7 +8,7 @@ create table SIT.TEST_TAB
             primary key,
     time      TIMESTAMP not null,
     string    VARCHAR2(255),
-    "integer" int       not null,
+    "integer" NUMBER(7) not null,
     "long"    NUMBER(14),
     "date"    date      not null
 );

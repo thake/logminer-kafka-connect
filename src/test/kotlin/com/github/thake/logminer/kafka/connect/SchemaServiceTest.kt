@@ -1,5 +1,9 @@
 package com.github.thake.logminer.kafka.connect
 
+import com.github.thake.logminer.kafka.connect.SchemaType.NumberType.*
+import com.github.thake.logminer.kafka.connect.SchemaType.StringType
+import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.DateType
+import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.TimestampType
 import io.kotlintest.*
 import io.kotlintest.matchers.types.shouldNotBeNull
 import io.kotlintest.specs.WordSpec
@@ -79,76 +83,100 @@ class SchemaServiceTest : WordSpec() {
     init {
         "test correct types" should {
             "byte" {
-                "NUMBER(2,0)".shouldBe(SchemaType.ByteType)
+                "NUMBER(2,0)".shouldBe(ByteType)
             }
             "short" {
-                "NUMBER(3,0)".shouldBe(SchemaType.ShortType)
+                "NUMBER(3,0)".shouldBe(ShortType)
             }
             "int"{
-                "NUMBER(5,0)".shouldBe(SchemaType.IntType)
+                "NUMBER(5,0)".shouldBe(IntType)
             }
             "long"{
-                "NUMBER(10,0)".shouldBe(SchemaType.LongType)
+                "NUMBER(10,0)".shouldBe(LongType)
             }
             "BigDecimal"{
-                "NUMBER(20,0)".shouldBe(SchemaType.BigDecimalType(0))
+                "NUMBER(20,0)".shouldBe(BigDecimalType(0))
             }
             "undefined NUMBER"{
-                "NUMBER".shouldBe(SchemaType.BigDecimalType(0))
+                "NUMBER".shouldBe(BigDecimalType(0))
             }
             "Date"{
-                "DATE".shouldBe(SchemaType.DateType)
+                "DATE".shouldBe(DateType)
             }
             "Timestamp"{
-                "TIMESTAMP".shouldBe(SchemaType.TimestampType)
+                "TIMESTAMP".shouldBe(TimestampType)
             }
             "Timestamp with timezone"{
-                "TIMESTAMP WITH TIME ZONE".shouldBe(SchemaType.TimestampType)
+                "TIMESTAMP WITH TIME ZONE".shouldBe(TimestampType)
             }
             "Timestamp with local timezone"{
-                "TIMESTAMP WITH LOCAL TIME ZONE".shouldBe(SchemaType.TimestampType)
+                "TIMESTAMP WITH LOCAL TIME ZONE".shouldBe(TimestampType)
             }
             "byteDefault" {
-                "NUMBER(2,0) default 1".shouldBe(SchemaType.ByteType, true, 1.toByte())
+                "NUMBER(2,0) default 1".shouldBe(ByteType, true, 1.toByte())
             }
             "shortDefault" {
-                "NUMBER(3,0) default 1".shouldBe(SchemaType.ShortType, true, 1.toShort())
+                "NUMBER(3,0) default 1".shouldBe(ShortType, true, 1.toShort())
             }
             "intDefault"{
-                "NUMBER(5,0) default 1".shouldBe(SchemaType.IntType, true, 1)
+                "NUMBER(5,0) default 1".shouldBe(IntType, true, 1)
             }
             "longDefault"{
-                "NUMBER(10,0) default 1".shouldBe(SchemaType.LongType, true, 1L)
+                "NUMBER(10,0) default 1".shouldBe(LongType, true, 1L)
+            }
+            "long default with space"{
+                "NUMBER(10,0) default 1 ".shouldBe(LongType, true, 1L)
             }
             "BigDecimalDefault"{
-                "NUMBER(20,0) default 1".shouldBe(SchemaType.BigDecimalType(0), true, BigDecimal.ONE)
+                "NUMBER(20,0) default 1".shouldBe(BigDecimalType(0), true, BigDecimal.ONE)
+            }
+            "date small"{
+                "date".shouldBe(DateType)
             }
             "DateDefault"{
                 "DATE default DATE '2018-04-12'".shouldBe(
-                    SchemaType.DateType,
+                    DateType,
                     true,
                     java.util.Date.from(LocalDate.of(2018, 4, 12).atStartOfDay(ZoneOffset.UTC).toInstant())
                 )
             }
             "TimestampDefault"{
                 "TIMESTAMP default TIMESTAMP '2018-04-12 01:00:00'".shouldBe(
-                    SchemaType.TimestampType, true, Timestamp.valueOf(
+                    TimestampType, true, Timestamp.valueOf(
                         LocalDateTime.of(2018, 4, 12, 1, 0, 0)
                     )
                 )
             }
 
             "TimestampCurrentTimestampDefault"{
-                "TIMESTAMP default current_timestamp".shouldBe(SchemaType.TimestampType, true)
+                "TIMESTAMP default current_timestamp".shouldBe(TimestampType, true)
+            }
+            "Timestamp sysdate default with space"{
+                "TIMESTAMP default sysdate ".shouldBe(TimestampType, true)
             }
             "markedAsNullable"{
-                "NUMBER(10,0)".shouldBe(SchemaType.LongType, true)
+                "NUMBER(10,0)".shouldBe(LongType, true)
             }
             "markesAsNonNullable"{
-                "NUMBER(10,0) not null".shouldBe(SchemaType.LongType, false)
+                "NUMBER(10,0) not null".shouldBe(LongType, false)
             }
             "hasComment"{
-                "NUMBER(10,0)".shouldBe(SchemaType.LongType, true, null, "My Comment")
+                "NUMBER(10,0)".shouldBe(LongType, true, null, "My Comment")
+            }
+            "varchar2"{
+                "VARCHAR2(5 CHAR)".shouldBe(StringType)
+            }
+            "char"{
+                "CHAR".shouldBe(StringType)
+            }
+            "nchar"{
+                "NCHAR".shouldBe(StringType)
+            }
+            "nvarchar2"{
+                "NVARCHAR2(5)".shouldBe(StringType)
+            }
+            "varchar2 default"{
+                "VARCHAR2(5 CHAR) default 'N'".shouldBe(StringType, true, "N")
             }
         }
     }
