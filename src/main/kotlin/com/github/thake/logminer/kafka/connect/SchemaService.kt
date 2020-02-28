@@ -115,7 +115,13 @@ class SchemaService(private val nameService: ConnectNameService) {
             val defaultValue = if (column.defaultValue == null) {
                 null
             } else {
-                schemaType.convertDefaultValue(column.defaultValue)
+                try {
+                    schemaType.convertDefaultValue(column.defaultValue)
+                } catch (e: Exception) {
+                    logger
+                            .warn(e) { "Couldn't convert the default value for column ${column.name} from string '${column.defaultValue}'" }
+                    null
+                }
             }
             if (column.isNullable || defaultValue != null) {
                 builder.defaultValue(defaultValue)

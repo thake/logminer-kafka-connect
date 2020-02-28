@@ -81,7 +81,6 @@ sealed class SchemaType<T> {
     object StringType : SchemaType<String>() {
         override fun convert(str: String) = str
         override fun convertDefaultValue(str: String) = str.trim().removeSurrounding("'")
-
         override fun createSchemaBuilder(): SchemaBuilder = SchemaBuilder.string()
         override fun toString(): String = "String"
         override fun extract(index: Int, resultSet: ResultSet): String? = resultSet.getString(index)

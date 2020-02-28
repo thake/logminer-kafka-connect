@@ -178,6 +178,9 @@ class SchemaServiceTest : WordSpec() {
             "varchar2 default"{
                 "VARCHAR2(5 CHAR) default 'N'".shouldBe(StringType, true, "N")
             }
+            "non parsable default"{
+                "NUMBER(5) default 1+2".shouldBe(IntType)
+            }
         }
     }
 }
