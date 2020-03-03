@@ -60,7 +60,7 @@ class SelectSource(
                 lastOffset = nextRecord.offset as SelectOffset
                 result.add(nextRecord)
             } else {
-                //No new records from the current fetcher. Close the fetcher and check the next table
+                //No new records from the current table. Close the fetcher and check the next table
                 fetcher.close()
                 val newIndex = tablesToFetch.indexOf(fetcher.fetcherOffset.table) + 1
                 if (newIndex < tablesToFetch.size) {
@@ -70,6 +70,8 @@ class SelectSource(
                         schemaService
                     )
                     currentTableFetcher = fetcher
+                    //Exit the loop to return the current result set.
+                    break
                 } else {
                     //no more records to poll all tables polled
                     continuePolling = false
