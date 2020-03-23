@@ -1,10 +1,7 @@
 package com.github.thake.logminer.kafka.connect.initial
 
 import com.github.thake.logminer.kafka.connect.*
-import java.sql.Connection
-import java.sql.PreparedStatement
-import java.sql.ResultSet
-import java.sql.Timestamp
+import java.sql.*
 
 data class FetcherOffset(
     val table: TableId,
@@ -36,7 +33,14 @@ class TableFetcher(val conn: Connection, val fetcherOffset: FetcherOffset, val s
                 val name = resultSet.metaData.getColumnName(it)
                 val columnDef = schemaDefinition.getColumnSchemaType(name)
                     ?: throw IllegalStateException("Column $name does not exist in schema definition")
-                var value = columnDef.extract(it, resultSet)
+                var value = try {
+                    columnDef.extract(it, resultSet)
+                } catch (e: SQLException) {
+                    throw SQLException(
+                        "Couldn't convert value of column $name (table: ${fetcherOffset.table.fullName}). Expected type: $columnDef.",
+                        e
+                    )
+                }
                 if (resultSet.wasNull()) {
                     value = null
                 }

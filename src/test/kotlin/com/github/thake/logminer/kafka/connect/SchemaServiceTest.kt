@@ -88,6 +88,9 @@ class SchemaServiceTest : WordSpec() {
             "short" {
                 "NUMBER(3,0)".shouldBe(ShortType)
             }
+            "shortWithoutPrecision" {
+                "NUMBER(4)".shouldBe(ShortType)
+            }
             "int"{
                 "NUMBER(5,0)".shouldBe(IntType)
             }

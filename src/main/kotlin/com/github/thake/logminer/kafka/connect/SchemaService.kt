@@ -73,7 +73,7 @@ class SchemaService(private val nameService: ConnectNameService) {
                     val name = result.getString("COLUMN_NAME")
                     val precision = result.getInt("DATA_PRECISION")
                     val scale = result.getInt("DATA_SCALE").let { scale ->
-                        if (result.wasNull()) {
+                        if (result.wasNull() || (scale == 0 && precision == 0)) {
                             null
                         } else {
                             scale

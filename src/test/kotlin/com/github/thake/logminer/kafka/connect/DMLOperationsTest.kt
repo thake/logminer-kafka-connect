@@ -6,6 +6,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.*
 
 @Testcontainers
@@ -52,7 +53,7 @@ class DMLOperationsTest : AbstractCdcSourceIntegrationTest() {
                 after[Columns.TIME.name]
             )
             assertEquals(
-                Date.from(LocalDate.of(2020, 1, 13).atStartOfDay(ZoneId.systemDefault()).toInstant()),
+                Date.from(LocalDate.of(2020, 1, 13).atStartOfDay(ZoneOffset.UTC).toInstant()),
                 after[Columns.date.name]
             )
         }
