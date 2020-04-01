@@ -23,7 +23,7 @@ dependencies {
     val kafkaVersion by extra("2.4.0")
     val kotlinTestVersion by extra("3.4.2")
     implementation(kotlin("stdlib-jdk8"))
-    implementation("com.github.thake.logminer", "logminer-sql-parser", "1.0.0-SNAPSHOT")
+    implementation("com.github.thake.logminer", "logminer-sql-parser", "0.1.0")
     implementation("net.openhft", "chronicle-queue", "5.17.40")
     implementation("io.github.microutils", "kotlin-logging", "1.7.7")
     compileOnly("org.apache.kafka", "connect-api", kafkaVersion)
