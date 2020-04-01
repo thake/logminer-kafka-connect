@@ -78,17 +78,17 @@ distributions {
         //https://docs.confluent.io/current/connect/managing/confluent-hub/component-archive.html
         baseName = "thake-${project.name}"
         contents {
-            into("/lib") {
+            into("lib") {
                 from(tasks["jar"])
                 from(configurations.runtimeClasspath)
             }
-            into("/doc") {
+            into("doc") {
                 from("LICENSE", "Readme.md")
             }
-            into("/etc") {
+            into("etc") {
                 from("logminer-kafka-connect.properties")
             }
-            into("/") {
+            into("") {
                 from("manifest.json") {
                     this.expand(
                         "version" to project.version,
