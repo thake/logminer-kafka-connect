@@ -2,12 +2,13 @@ plugins {
     kotlin("jvm") version "1.3.70"
     java
     id("com.github.johnrengelman.shadow") version "5.2.0"
-    `maven-publish`
+    signing
     idea
+    distribution
+    id("net.researchgate.release") version "2.8.1"
 }
 
 group = "com.github.thake.logminer"
-version = "0.2.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -38,18 +39,6 @@ dependencies {
     testImplementation("io.kotlintest:kotlintest-runner-junit5:$kotlinTestVersion")
     testImplementation("io.kotlintest:kotlintest-assertions:$kotlinTestVersion")
 }
-
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-            artifact(tasks["kotlinSourcesJar"])
-        }
-    }
-}
-
-
-
 
 tasks {
     compileKotlin {
@@ -83,29 +72,38 @@ tasks {
         from(sourceSets.main.get().allSource)
     }
 }
-tasks.register<Copy>("prepare-confluent-hub") {
-
-}
-tasks.register<Zip>("confluent-hub") {
-    archiveFileName.set("thake-logminer-kafka-connect-${project.version}.zip")
-    dependsOn(configurations.runtimeClasspath)
-    into("lib") {
-        from(configurations.runtime.get().allArtifacts.files)
-        from({
-            configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }
-        })
-    }
-    into("doc") {
-        from("LICENSE", "Readme.md")
-    }
-    into("etc") {
-        from("logminer-kafka-connect.properties")
-    }
-    into("") {
-        from("manifest.json") {
-            this.expand(
-                "version" to project.version
-            )
+distributions {
+    main {
+        //The main distribution is in a format needed for confluent-hub:
+        //https://docs.confluent.io/current/connect/managing/confluent-hub/component-archive.html
+        baseName = "thake-${project.name}"
+        contents {
+            into("/lib") {
+                from(tasks["jar"])
+                from(configurations.runtimeClasspath)
+            }
+            into("/doc") {
+                from("LICENSE", "Readme.md")
+            }
+            into("/etc") {
+                from("logminer-kafka-connect.properties")
+            }
+            into("/") {
+                from("manifest.json") {
+                    this.expand(
+                        "version" to project.version,
+                        "name" to project.name
+                    )
+                }
+            }
         }
     }
 }
+signing {
+    useGpgCmd()
+    isRequired = !isSnapshot
+    sign(tasks["distZip"])
+}
+
+inline val Project.isSnapshot
+    get() = version.toString().endsWith("-SNAPSHOT")

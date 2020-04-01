@@ -105,7 +105,7 @@ The following source fields will be provided:
 
 
 ## Configuration
-You can find an example configuration under [example-configuration.properties](example-configuration.properties).
+You can find an example configuration under [logminer-kafka-connect.properties](logminer-kafka-connect.properties).
 
 The following configuration parameter are available:
   - `db.hostname`  

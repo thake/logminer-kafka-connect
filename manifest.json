@@ -2,7 +2,7 @@
   "component_types": [
     "source"
   ],
-  "name": "logminer-kafka-connect",
+  "name": "${name}",
   "title": "Logminer Kafka Connect",
   "version": "${version}",
   "description": "Logminer Kafka Connect is a CDC Kafka Connect source for Oracle Databases (tested with Oracle 11.2.0.4) using Oracle Logminer.",
