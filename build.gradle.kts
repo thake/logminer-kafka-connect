@@ -9,8 +9,6 @@ plugins {
 group = "com.github.thake.logminer"
 version = "1.0-SNAPSHOT"
 
-
-
 repositories {
     mavenCentral()
     mavenLocal()
@@ -72,7 +70,7 @@ tasks {
          */
     }
     shadowJar {
-        baseName = "logminer-kafka-connect"
+        archiveBaseName.set("logminer-kafka-connect")
     }
     idea {
         module {
@@ -83,5 +81,31 @@ tasks {
     kotlinSourcesJar {
         archiveClassifier.set("sources")
         from(sourceSets.main.get().allSource)
+    }
+}
+tasks.register<Copy>("prepare-confluent-hub") {
+
+}
+tasks.register<Zip>("confluent-hub") {
+    archiveFileName.set("thake-logminer-kafka-connect-${project.version}.zip")
+    dependsOn(configurations.runtimeClasspath)
+    into("lib") {
+        from(configurations.runtime.get().allArtifacts.files)
+        from({
+            configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }
+        })
+    }
+    into("doc") {
+        from("LICENSE", "Readme.md")
+    }
+    into("etc") {
+        from("logminer-kafka-connect.properties")
+    }
+    into("") {
+        from("manifest.json") {
+            this.expand(
+                "version" to project.version
+            )
+        }
     }
 }
