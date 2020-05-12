@@ -9,6 +9,9 @@ import org.testcontainers.junit.jupiter.Testcontainers
 @Testcontainers
 abstract class AbstractCdcSourceIntegrationTest : AbstractIntegrationTest() {
     protected lateinit var cdcSource: LogminerSource
+    protected open val tableSelector: TableSelector
+        get() = TableSelector(OWNER, TABLE_NAME)
+
     @BeforeEach
     fun setupCdcSource() {
         cdcSource = createCdcSource()
@@ -23,10 +26,7 @@ abstract class AbstractCdcSourceIntegrationTest : AbstractIntegrationTest() {
         LogminerSource(
             config = LogminerConfiguration(
                 listOf(
-                    TableSelector(
-                        OWNER,
-                        TABLE_NAME
-                    )
+                    tableSelector
                 )
             ),
             offset = offset,

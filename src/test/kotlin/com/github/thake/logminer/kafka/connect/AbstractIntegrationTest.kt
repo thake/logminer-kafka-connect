@@ -22,7 +22,7 @@ val SECOND_TABLE = TableId(OWNER, "SECOND_TAB")
 abstract class AbstractIntegrationTest {
 
     @Container
-    protected val oracle: OracleContainer =
+    protected open val oracle: OracleContainer =
         OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript("InitTestTable.sql").withReuse(false)
 
 

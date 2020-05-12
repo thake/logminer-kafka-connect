@@ -259,7 +259,11 @@ class LogminerFetcher(
         if (scn == lastScn) {
             val rowId = resultSet.getString(LogminerSchema.Fields.ROW_ID)
             if (rowId == lastOpenRow) {
-                //We found the last read row id, we can stop skipping
+                //We found the last read row id, we skip until we find a row that has CSF not set
+                var nextRowBelongsToRowId = resultSet.getBoolean(LogminerSchema.Fields.CSF)
+                while (nextRowBelongsToRowId && resultSet.next()) {
+                    nextRowBelongsToRowId = resultSet.getBoolean(LogminerSchema.Fields.CSF)
+                }
                 logger.debug { "Skipped all rows until row with ID '$rowId'(including) in order to correctly set offset." }
                 needToSkipToOffsetStart = false
             }

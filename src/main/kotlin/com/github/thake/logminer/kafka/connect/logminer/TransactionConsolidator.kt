@@ -3,6 +3,8 @@ package com.github.thake.logminer.kafka.connect.logminer
 import com.github.thake.logminer.kafka.connect.OracleLogOffset
 import com.github.thake.logminer.kafka.connect.PollResult
 import com.github.thake.logminer.kafka.connect.SchemaService
+import com.github.thake.logminer.sql.parser.LogminerSqlParserException
+import mu.KotlinLogging
 import net.openhft.chronicle.queue.ChronicleQueue
 import java.nio.file.Files
 import java.nio.file.Path
@@ -10,6 +12,7 @@ import java.sql.Connection
 import java.util.*
 import java.util.stream.Collectors
 import kotlin.math.min
+
 
 class TransactionConsolidator(val schemaService: SchemaService) {
     private var lastCommittedTransaction: Transaction? = null
@@ -20,7 +23,7 @@ class TransactionConsolidator(val schemaService: SchemaService) {
     var minOpenTransaction: Transaction? = null
     private val baseDir: Path =
         Files.createTempDirectory("kafaka-oracle-connect")
-
+    private val logger = KotlinLogging.logger {}
     fun commit(commitRow: LogminerRow.Commit) {
         val recordsInTransaction = openTransactions.remove(commitRow.transaction)
         lastCommitScn = commitRow.rowIdentifier.scn
@@ -40,19 +43,25 @@ class TransactionConsolidator(val schemaService: SchemaService) {
         return lastCommittedTransaction?.let { lastCommitted ->
             val loadedRecords = lastCommitted.readRecords(batchSize)
             val transactionCompleted = !lastCommitted.hasMoreRecords
-            loadedRecords.parallelStream().map {
-                PollResult(
-                    it.toCdcRecord(lastCommitted.transactionSchemas[it.table]!!),
-                    OracleLogOffset.create(
-                        min(
-                            it.rowIdentifier.scn,
-                            minOpenTransaction?.minScn ?: Long.MAX_VALUE
-                        ),
-                        lastCommitted.commitScn!!,
-                        transactionCompleted
+            @Suppress("UNCHECKED_CAST") //Explicit != null check. Warning is a false positive
+            (loadedRecords.parallelStream().map {
+                try {
+                    PollResult(
+                        it.toCdcRecord(lastCommitted.transactionSchemas[it.table]!!),
+                        OracleLogOffset.create(
+                            min(
+                                it.rowIdentifier.scn,
+                                minOpenTransaction?.minScn ?: Long.MAX_VALUE
+                            ),
+                            lastCommitted.commitScn!!,
+                            transactionCompleted
+                        )
                     )
-                )
-            }.collect(Collectors.toList()).also {
+                } catch (e: LogminerSqlParserException) {
+                    logger.error(e) { "Skipping record for table ${it.table} with row identifier ${it.rowIdentifier}. Could not parse SQL statement \"${it.sqlRedo}\"." }
+                    null
+                }
+            }.filter { it != null }.collect(Collectors.toList()) as List<PollResult>).also {
                 if (transactionCompleted) {
                     lastCommitted.close()
                     lastCommittedTransaction = null
