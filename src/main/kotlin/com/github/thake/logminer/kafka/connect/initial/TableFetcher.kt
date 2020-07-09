@@ -1,8 +1,10 @@
 package com.github.thake.logminer.kafka.connect.initial
 
 import com.github.thake.logminer.kafka.connect.*
+import mu.KotlinLogging
 import java.sql.*
 
+private val logger = KotlinLogging.logger {}
 data class FetcherOffset(
     val table: TableId,
     val asOfScn: Long,
@@ -21,8 +23,10 @@ class TableFetcher(val conn: Connection, val fetcherOffset: FetcherOffset, val s
             return "SELECT t.*, ROWID, ORA_ROWSCN FROM ${fetcherOffset.table.fullName} AS OF SCN ${fetcherOffset.asOfScn} t $rowIdCondition order by ROWID ASC"
         }
         schemaDefinition = schemaService.getSchema(conn, fetcherOffset.table)
-        stmt = conn.prepareStatement(determineQuery())
+        val query = determineQuery()
+        stmt = conn.prepareStatement(query)
         try {
+            logger.debug { "Fetching records with sql statement: $query" }
             resultSet = stmt.executeQuery()
         } catch (e: SQLException) {
             stmt.close()
@@ -67,6 +71,7 @@ class TableFetcher(val conn: Connection, val fetcherOffset: FetcherOffset, val s
                 val offset = SelectOffset.create(fetcherOffset.asOfScn, fetcherOffset.table, rowId)
                 return PollResult(cdcRecord, offset)
             } else {
+                logger.debug { "ResultSet for table ${fetcherOffset.table} has no more records." }
                 null
             }
         } catch (e: SQLException) {

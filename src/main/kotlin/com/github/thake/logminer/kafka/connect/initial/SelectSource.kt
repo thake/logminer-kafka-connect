@@ -70,10 +70,13 @@ class SelectSource(
                         schemaService
                     )
                     currentTableFetcher = fetcher
-                    //Exit the loop to return the current result set.
-                    break
+                    //Exit the loop to return the current result set if it is not empty.
+                    if (result.isNotEmpty()) {
+                        break
+                    }
                 } else {
                     //no more records to poll all tables polled
+                    logger.debug { "Stopping fetching from tables as fetch from table ${fetcher.fetcherOffset.table} did not provide any more results." }
                     continuePolling = false
                 }
             }
