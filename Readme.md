@@ -21,11 +21,12 @@ Currently supported features:
 - Initial import of the current table state
 - Only based on Oracle features that are available in Oracle XE (and thus available in all Oracle versions). No
 Oracle GoldenGate license required!
+- Reading schema changes from the Archive-Log or Online Dictionary. Thus supporting database schemas that tend to change regularly. See 
+https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm#i1014687 for more information.
 
 Planned features:
 - More documentation :)
-- Reading schema changes from the Archive-Log. Currently the online catalog is used. See 
-https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm#i1014687 for more information.
+
 
 ## Initial Import
 If the start SCN is not set or set to 0, logminer kafka connect will query
@@ -145,6 +146,14 @@ The following configuration parameter are available:
       - Type: string
       - Importance: high
 
+  - `db.logminer.dictionary`  
+    Type of logminer dictionary that should be used. 
+    Valid values: ONLINE, REDO_LOG
+    
+      - Type: string
+      - Default: ONLINE
+      - Importance: low
+  
   - `batch.size`  
     Batch size of rows that should be fetched in one batch
     
@@ -215,3 +224,15 @@ prompt Activated supplemental logging with all columns.;
 prompt Starting up database;
 alter database open;
 ```
+## Limitations
+- Due to limitations of Oracle Logminer, it is not possible to track the UPDATE statements to existing records that are implicitly performed whenever a new
+not null column with a default value will be added to a table. 
+
+  However you can change the way you add these columns in order to correctly record the UPDATE statements. 
+Instead of doing everything in one command, one could separate it into the following steps:
+  1. Adding new nullable column
+  1. Adding a trigger on insert that automatically inserts the default value for the new nullable column if it is not specified.
+  1. Updating the column with the default value for all existing rows
+  1. Changing the definition of the column to be NOT NULL with the default value.
+  1. Dropping trigger on insert
+Performing the DDL in this way would guarantee that the change log will be readable by logminer.

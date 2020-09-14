@@ -33,7 +33,8 @@ abstract class AbstractIntegrationTest {
     }
 
     protected fun Connection.insertRow(id: Int, table: TableId) {
-        this.prepareStatement("INSERT INTO ${table.fullName} VALUES (?,?,?,?,?,?)").use {
+        val columnList = Columns.values().joinToString(",", "(", ")") { "\"${it.name}\"" }
+        this.prepareStatement("INSERT INTO ${table.fullName} $columnList VALUES (?,?,?,?,?,?)").use {
             it.setInt(1, id)
             it.setTimestamp(2, Timestamp.from(Instant.now()))
             it.setString(3, "Test")
@@ -85,20 +86,19 @@ abstract class AbstractIntegrationTest {
         return this.poll()
     }
 
-    protected fun assertAllBeforeColumnsContained(result: List<PollResult>) {
-        result.forEach { assertAllColumnsContained(it.cdcRecord.before) }
+    protected fun assertAllBeforeColumnsContained(result: List<PollResult>, columnNames : List<String> = Columns.values().map { it.name }) {
+        result.forEach { assertAllColumnsContained(it.cdcRecord.before, columnNames) }
     }
 
-    protected fun assertAllAfterColumnsContained(result: List<PollResult>) {
-        result.forEach { assertAllColumnsContained(it.cdcRecord.after) }
+    protected fun assertAllAfterColumnsContained(result: List<PollResult>, columnNames : List<String> = Columns.values().map { it.name }) {
+        result.forEach { assertAllColumnsContained(it.cdcRecord.after, columnNames) }
     }
 
-    protected fun assertAllColumnsContained(valueMap: Map<String, Any?>?) {
+    private fun assertAllColumnsContained(valueMap: Map<String, Any?>?, columnNames : List<String>) {
         assertNotNull(valueMap)
-        val upperCaseColumns = Columns.values().map { it.name }
         val keys = valueMap!!.keys
-        val leftOverKeys = upperCaseColumns.toMutableList().apply { removeAll(keys) }
+        val leftOverKeys = columnNames.toMutableList().apply { removeAll(keys) }
         assertTrue(leftOverKeys.isEmpty(), "Some columns are missing: $leftOverKeys")
-        assertEquals(upperCaseColumns.size, keys.size)
+        assertEquals(columnNames.size, keys.size)
     }
 }

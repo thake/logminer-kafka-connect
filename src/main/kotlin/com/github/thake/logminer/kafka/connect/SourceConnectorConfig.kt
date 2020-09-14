@@ -8,6 +8,9 @@ import java.time.Duration
 sealed class LogMinerSelector
 data class TableSelector(val owner: String, val tableName: String) : LogMinerSelector()
 data class SchemaSelector(val owner: String) : LogMinerSelector()
+enum class LogminerDictionarySource{
+    ONLINE, REDO_LOG
+}
 class SourceConnectorConfig(
     config: ConfigDef?,
     parsedConfig: Map<String, String>
@@ -35,6 +38,9 @@ class SourceConnectorConfig(
 
     val dbName: String
         get() = getString(DB_NAME)
+
+    val logminerDictionarySource : LogminerDictionarySource
+        get() = LogminerDictionarySource.valueOf(getString(DB_LOGMINER_DICTIONARY))
 
     val monitoredTables: List<String>
         get() = getString(MONITORED_TABLES).split(",").map { it.trim() }
@@ -77,11 +83,13 @@ class SourceConnectorConfig(
         const val DB_PASSWORD = "db.user.password"
         const val DB_ATTEMPTS = "db.attempts"
         const val DB_BACKOFF_MS = "db.backoff.ms"
+        const val DB_LOGMINER_DICTIONARY = "db.logminer.dictionary"
         const val MONITORED_TABLES = "table.whitelist"
         const val DB_FETCH_SIZE = "db.fetch.size"
         const val START_SCN = "start.scn"
         const val BATCH_SIZE = "batch.size"
         const val POLL_INTERVAL_MS = "poll.interval.ms"
+
 
         fun conf(): ConfigDef {
             return ConfigDef()
@@ -120,6 +128,13 @@ class SourceConnectorConfig(
                         ConfigDef.Type.STRING,
                         Importance.HIGH,
                         "Database password"
+                    )
+                    .define(
+                            DB_LOGMINER_DICTIONARY,
+                            ConfigDef.Type.STRING,
+                            LogminerDictionarySource.ONLINE.name,
+                            Importance.LOW,
+                            "Type of logminer dictionary that should be used. Valid values: "+LogminerDictionarySource.values().joinToString { it.name }
                     )
                     .define(
                         MONITORED_TABLES,
@@ -174,4 +189,7 @@ class SourceConnectorConfig(
                     )
         }
     }
+}
+fun main(){
+    println(SourceConnectorConfig.conf().toEnrichedRst())
 }

@@ -8,29 +8,30 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 abstract class AbstractCdcSourceIntegrationTest : AbstractIntegrationTest() {
-    protected lateinit var cdcSource: LogminerSource
+    private lateinit var cdcSource: LogminerSource
     protected open val tableSelector: TableSelector
         get() = TableSelector(OWNER, TABLE_NAME)
 
-    @BeforeEach
-    fun setupCdcSource() {
-        cdcSource = createCdcSource()
+
+    fun getCdcSource(dictionarySource : LogminerDictionarySource) : LogminerSource {
+        cdcSource = createCdcSource(dictionarySource)
+        return cdcSource
     }
 
     @AfterEach
     fun tearDownCdcSource() {
-        cdcSource.close()
+        cdcSource.stopLogminer()
     }
 
-    protected fun createCdcSource(offset: OracleLogOffset = OracleLogOffset.create(0, 0, true)) =
+    protected fun createCdcSource(logminerDictionarySource: LogminerDictionarySource, offset: OracleLogOffset = OracleLogOffset.create(0, 0, true)) =
         LogminerSource(
             config = LogminerConfiguration(
                 listOf(
                     tableSelector
-                )
+                ),
+                logminerDictionarySource = logminerDictionarySource
             ),
             offset = offset,
             schemaService = SchemaService(SourceDatabaseNameService("A"))
         )
-
 }

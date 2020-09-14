@@ -39,7 +39,8 @@ sealed class LogminerRow {
         val username: String,
         val table: TableId,
         val sqlRedo: String,
-        val operation: Operation
+        val operation: Operation,
+        val status : Int = 0
     ) : LogminerRow() {
         private data class ChangeData(val before: Map<String, Any?>?, val after: Map<String, Any?>?)
 

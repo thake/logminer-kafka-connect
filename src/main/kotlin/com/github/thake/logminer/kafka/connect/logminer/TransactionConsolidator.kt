@@ -1,11 +1,13 @@
 package com.github.thake.logminer.kafka.connect.logminer
 
+import com.github.thake.logminer.kafka.connect.CdcRecord
 import com.github.thake.logminer.kafka.connect.OracleLogOffset
 import com.github.thake.logminer.kafka.connect.PollResult
 import com.github.thake.logminer.kafka.connect.SchemaService
 import com.github.thake.logminer.sql.parser.LogminerSqlParserException
 import mu.KotlinLogging
 import net.openhft.chronicle.queue.ChronicleQueue
+import org.apache.kafka.connect.errors.DataException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.sql.Connection
@@ -14,7 +16,10 @@ import java.util.stream.Collectors
 import kotlin.math.min
 
 
-class TransactionConsolidator(val schemaService: SchemaService) {
+class TransactionConsolidator(
+        val schemaService: SchemaService
+) {
+    var conn : Connection? = null
     private var lastCommittedTransaction: Transaction? = null
     var lastCommitScn: Long? = null
     private val openTransactions: MutableMap<String, Transaction> = mutableMapOf()
@@ -46,8 +51,9 @@ class TransactionConsolidator(val schemaService: SchemaService) {
             @Suppress("UNCHECKED_CAST") //Explicit != null check. Warning is a false positive
             (loadedRecords.parallelStream().map {
                 try {
+                    val cdcRecord = convertToCdcRecord(it, lastCommitted)
                     PollResult(
-                        it.toCdcRecord(lastCommitted.transactionSchemas[it.table]!!),
+                        cdcRecord,
                         OracleLogOffset.create(
                             min(
                                 it.rowIdentifier.scn,
@@ -70,12 +76,24 @@ class TransactionConsolidator(val schemaService: SchemaService) {
         } ?: Collections.emptyList()
     }
 
-    fun addChange(conn: Connection, changeRow: LogminerRow.Change) {
+    private fun convertToCdcRecord(it: LogminerRow.Change, lastCommitted: Transaction): CdcRecord {
+        return try {
+            it.toCdcRecord(lastCommitted.transactionSchemas[it.table]!!)
+        } catch (e: DataException) {
+            logger.info { "Couldn't convert a logminer row to a cdc record. This may be caused by a changed schema. Schema will be refreshed and conversion will be tried again." }
+            lastCommitted.updateSchema(it.table)
+            it.toCdcRecord(lastCommitted.transactionSchemas[it.table]!!).also {
+                logger.info { "Conversion to cdc record was successful with refreshed schema." }
+            }
+        }
+    }
+
+    fun addChange(changeRow: LogminerRow.Change) {
         val existingOpenTransaction = openTransactions[changeRow.transaction]
         if (existingOpenTransaction != null) {
-            existingOpenTransaction.addChange(conn, changeRow)
+            existingOpenTransaction.addChange(changeRow)
         } else {
-            val newTransaction = Transaction({ this.createQueue(it) }, conn, changeRow, schemaService)
+            val newTransaction = Transaction({ this.createQueue(it) }, conn!!, changeRow, schemaService)
             openTransactions[changeRow.transaction] = newTransaction
             if (minOpenTransaction == null) {
                 minOpenTransaction = newTransaction

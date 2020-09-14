@@ -1,9 +1,11 @@
 package com.github.thake.logminer.kafka.connect
 
-import junit.framework.Assert.assertNotNull
 import mu.KotlinLogging
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.testcontainers.containers.OracleContainer
 import org.testcontainers.junit.jupiter.Container
 import java.util.concurrent.CountDownLatch
@@ -18,8 +20,9 @@ class LongStatementsTest : AbstractCdcSourceIntegrationTest() {
     override val oracle: OracleContainer =
         OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript("initSchemaStatement.sql").withReuse(false)
 
-    @Test
-    fun testLongStatementWrapping() {
+    @ParameterizedTest
+    @EnumSource
+    fun testLongStatementWrapping(dictionarySource: LogminerDictionarySource) {
         val columns = 500
         val columnSize = 255
         val strValue = IntRange(0, columnSize - 1).joinToString(separator = "") { "a" }
@@ -63,6 +66,7 @@ class LongStatementsTest : AbstractCdcSourceIntegrationTest() {
         Thread.sleep(2000)
         val pollConnection = openConnection()
         var totalReturnedResults = 0
+        val cdcSource = getCdcSource(dictionarySource)
         do {
             val results = cdcSource.getResults(pollConnection)
             assertNotNull(results)

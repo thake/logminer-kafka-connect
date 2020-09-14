@@ -2,6 +2,8 @@ package com.github.thake.logminer.kafka.connect
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -12,21 +14,25 @@ import java.util.*
 @Testcontainers
 class DMLOperationsTest : AbstractCdcSourceIntegrationTest() {
 
-    @Test
-    fun testInsertRecord() {
+    @ParameterizedTest
+    @EnumSource
+    fun testInsertRecord(dictionarySource: LogminerDictionarySource) {
         val conn = openConnection()
         val insertedId = 1
         conn.insertRow(1)
+        val cdcSource = getCdcSource(dictionarySource)
         val results = cdcSource.getResults(conn)
         assertContainsOnlySpecificOperationForIds(results, insertedId.rangeTo(insertedId), Operation.INSERT)
         assertAllAfterColumnsContained(results)
     }
 
-    @Test
-    fun testDeleteRecord() {
+    @ParameterizedTest
+    @EnumSource
+    fun testDeleteRecord(dictionarySource: LogminerDictionarySource) {
         val conn = openConnection()
         (0 until 100).forEach { conn.insertRow(it) }
         //Clear results by explicitly polling them
+        val cdcSource = getCdcSource(dictionarySource)
         cdcSource.getResults(conn)
         conn.executeUpdate("DELETE FROM ${STANDARD_TABLE.fullName} WHERE id < 50")
         val results = cdcSource.getResults(conn)
@@ -34,10 +40,12 @@ class DMLOperationsTest : AbstractCdcSourceIntegrationTest() {
         assertAllBeforeColumnsContained(results)
     }
 
-    @Test
-    fun testUpdateRecords() {
+    @ParameterizedTest
+    @EnumSource
+    fun testUpdateRecords(dictionarySource: LogminerDictionarySource) {
         val conn = openConnection()
         (0 until 100).forEach { conn.insertRow(it) }
+        val cdcSource = getCdcSource(dictionarySource)
         cdcSource.getResults(conn)
         conn
                 .executeUpdate("UPDATE ${STANDARD_TABLE.fullName} SET string = 'AAAA', time = TIMESTAMP '2020-01-13 15:45:01', \"date\" = DATE '2020-01-13' where id < 50")

@@ -16,7 +16,7 @@ private val logger = KotlinLogging.logger {}
 
 class Transaction(
     private val queueFactory: ((xid: String) -> ChronicleQueue),
-    conn: Connection,
+    private val conn: Connection,
     initialRecord: LogminerRow.Change,
     private val schemaService: SchemaService,
     private val maxRecordsInMemory: Int = 10
@@ -42,7 +42,7 @@ class Transaction(
     private var lastTimestamp: Long = System.currentTimeMillis()
 
     init {
-        addChange(conn, initialRecord)
+        addChange(initialRecord)
     }
 
     fun commit(commit: LogminerRow.Commit) {
@@ -69,7 +69,7 @@ class Transaction(
         }
     }
 
-    fun addChange(conn: Connection, record: LogminerRow.Change) {
+    fun addChange(record: LogminerRow.Change) {
         if (state != QueueState.WRITE) {
             throw java.lang.IllegalStateException("No new record can be added to the queue. The queue has already been read.")
         }
@@ -82,6 +82,9 @@ class Transaction(
         storage.addChange(record)
         size++
         logPerformanceStatistics()
+    }
+    fun updateSchema(tableId : TableId){
+        transactionSchemas[tableId] = schemaService.refreshSchema(conn, tableId)
     }
 
     private fun logPerformanceStatistics() {

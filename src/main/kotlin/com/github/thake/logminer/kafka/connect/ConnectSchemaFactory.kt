@@ -80,12 +80,12 @@ class ConnectSchemaFactory(private val nameService: ConnectNameService) {
         val struct = with(record) {
             var updatedAfter = after
 
-            val sourceStruct = com.github.thake.logminer.kafka.connect.SourceRecordFields.convert(record)
-            val recordStruct = org.apache.kafka.connect.data.Struct(valueSchema)
-                    .put(com.github.thake.logminer.kafka.connect.CdcRecordFields.OPERATION, operation.stringRep)
-                    .put(com.github.thake.logminer.kafka.connect.CdcRecordFields.SOURCE, sourceStruct)
-                    .put(com.github.thake.logminer.kafka.connect.CdcRecordFields.PUBLISH_TIMESTAMP, java.util.Date())
-            if (operation == com.github.thake.logminer.kafka.connect.Operation.UPDATE && updatedAfter != null && before != null) {
+            val sourceStruct = SourceRecordFields.convert(record)
+            val recordStruct = Struct(valueSchema)
+                    .put(CdcRecordFields.OPERATION, operation.stringRep)
+                    .put(CdcRecordFields.SOURCE, sourceStruct)
+                    .put(CdcRecordFields.PUBLISH_TIMESTAMP, java.util.Date())
+            if (operation == Operation.UPDATE && updatedAfter != null && before != null) {
                 //Enrich the after state with values from the before data set
                 val enrichedAfter = updatedAfter.toMutableMap()
                 before.forEach { enrichedAfter.putIfAbsent(it.key, it.value) }
@@ -93,13 +93,13 @@ class ConnectSchemaFactory(private val nameService: ConnectNameService) {
             }
             before?.let {
                 recordStruct.put(
-                    com.github.thake.logminer.kafka.connect.CdcRecordFields.BEFORE,
+                    CdcRecordFields.BEFORE,
                     convertDataToStruct(recordConnectSchema, it)
                 )
             }
             updatedAfter?.let {
                 recordStruct.put(
-                    com.github.thake.logminer.kafka.connect.CdcRecordFields.AFTER,
+                    CdcRecordFields.AFTER,
                     convertDataToStruct(recordConnectSchema, it)
                 )
             }

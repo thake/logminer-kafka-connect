@@ -84,6 +84,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
                 is OracleLogOffset -> LogminerSource(
                     LogminerConfiguration(
                         config.logMinerSelectors,
+                        config.logminerDictionarySource,
                         config.batchSize,
                         config.dbFetchSize
                     ), schemaService, offset
@@ -116,6 +117,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
         return LogminerSource(
             LogminerConfiguration(
                 config.logMinerSelectors,
+                config.logminerDictionarySource,
                 config.batchSize,
                 config.dbFetchSize
             ),
