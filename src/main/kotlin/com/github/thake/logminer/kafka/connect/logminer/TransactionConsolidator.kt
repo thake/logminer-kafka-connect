@@ -111,6 +111,6 @@ class TransactionConsolidator(
     }
 
     private fun refreshMinOpenScn() {
-        minOpenTransaction = openTransactions.values.minBy { it.minScn }
+        minOpenTransaction = openTransactions.values.minByOrNull { it.minScn }
     }
 }
