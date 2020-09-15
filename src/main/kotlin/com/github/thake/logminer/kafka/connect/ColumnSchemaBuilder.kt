@@ -71,10 +71,10 @@ sealed class SchemaType<T> {
         }
 
         data class BigDecimalType(private val scale: Int) : NumberType<BigDecimal>() {
-            override fun convert(str: String): BigDecimal = str.toBigDecimal()
+            override fun convert(str: String): BigDecimal = str.toBigDecimal().setScale(scale)
             override fun createSchemaBuilder(): SchemaBuilder = Decimal.builder(scale)
             override fun toString(): String = "BigDecimal"
-            override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)
+            override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)?.apply { setScale(scale) }
         }
     }
 
@@ -151,8 +151,8 @@ sealed class SchemaType<T> {
                 "NUMBER" -> {
                     when {
                         scale == null -> {
-                            //Undefined NUMERIC -> Decimal
-                            NumberType.BigDecimalType(0)
+                            //Undefined NUMERIC -> Decimal with scale 40 (max digits right of the dot)
+                            NumberType.BigDecimalType(40)
                         }
                         precision < 19 -> { // fits in primitive data types.
                             when {

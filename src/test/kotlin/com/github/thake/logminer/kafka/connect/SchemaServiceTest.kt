@@ -4,9 +4,14 @@ import com.github.thake.logminer.kafka.connect.SchemaType.NumberType.*
 import com.github.thake.logminer.kafka.connect.SchemaType.StringType
 import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.DateType
 import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.TimestampType
-import io.kotlintest.*
-import io.kotlintest.matchers.types.shouldNotBeNull
-import io.kotlintest.specs.WordSpec
+import io.kotest.*
+import io.kotest.core.spec.IsolationMode
+import io.kotest.core.spec.Spec
+import io.kotest.core.spec.style.WordSpec
+import io.kotest.core.test.TestCase
+import io.kotest.core.test.TestResult
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import org.testcontainers.containers.OracleContainer
 import java.math.BigDecimal
 import java.sql.Connection
@@ -44,7 +49,7 @@ class SchemaServiceTest : WordSpec() {
             }
         }
         schemaService = SchemaService(SourceDatabaseNameService("test"))
-        table = TableId(table.owner, "MY_${testCase.getLine()}")
+        table = TableId(table.owner, "MY_${testCase.source.lineNumber}")
 
     }
 
@@ -101,7 +106,7 @@ class SchemaServiceTest : WordSpec() {
                 "NUMBER(20,0)".shouldBe(BigDecimalType(0))
             }
             "undefined NUMBER"{
-                "NUMBER".shouldBe(BigDecimalType(0))
+                "NUMBER".shouldBe(BigDecimalType(40))
             }
             "Date"{
                 "DATE".shouldBe(DateType)

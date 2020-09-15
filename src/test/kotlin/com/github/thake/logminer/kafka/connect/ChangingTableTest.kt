@@ -1,14 +1,13 @@
 package com.github.thake.logminer.kafka.connect
 
-import io.kotlintest.matchers.types.shouldNotBeNull
-import io.kotlintest.should
-import org.junit.jupiter.api.Test
+
+import io.kotest.matchers.nulls.shouldNotBeNull
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import java.sql.Connection
 
 class ChangingTableTest : AbstractCdcSourceIntegrationTest() {
-    private fun Connection.addOptionalColumn(columnName: String, table:TableId = STANDARD_TABLE) {
+    private fun Connection.addOptionalColumn(columnName: String, table: TableId = STANDARD_TABLE) {
         this.prepareStatement("alter table ${table.fullName} add $columnName VARCHAR2(255) default 'A'").use {
             it.execute()
         }
@@ -31,7 +30,11 @@ class ChangingTableTest : AbstractCdcSourceIntegrationTest() {
         val newInsertedId = 2
         conn.insertRow(newInsertedId)
         val resultsWithNewColumn = cdcSource.getResults(conn)
-        assertContainsOnlySpecificOperationForIds(resultsWithNewColumn, newInsertedId.rangeTo(newInsertedId), Operation.INSERT)
+        assertContainsOnlySpecificOperationForIds(
+            resultsWithNewColumn,
+            newInsertedId.rangeTo(newInsertedId),
+            Operation.INSERT
+        )
         assertAllAfterColumnsContained(resultsWithNewColumn, Columns.values().map { it.name }.plus(newColumnName))
         resultsWithNewColumn.forEach {
             val after = it.cdcRecord.after

@@ -41,10 +41,14 @@ object SourceRecordFields {
             .build()
 
     fun convert(cdcRecord: CdcRecord): Struct {
-        return Struct(sourceSchema).put(VERSION, LogminerSourceConnector.version)
-                .put(CONNECTOR, LogminerSourceConnector.name).put(RECORD_TIMESTAMP, cdcRecord.timestamp)
-                .put(TRANSACTION, cdcRecord.transaction).put(SCN, cdcRecord.scn)
-                .put(OWNER, cdcRecord.table.owner).put(TABLE, cdcRecord.table.table)
+        return Struct(sourceSchema)
+                .put(VERSION, LogminerSourceConnector.version)
+                .put(CONNECTOR, LogminerSourceConnector.name)
+                .put(RECORD_TIMESTAMP, cdcRecord.timestamp)
+                .put(TRANSACTION, cdcRecord.transaction)
+                .put(SCN, cdcRecord.scn)
+                .put(OWNER, cdcRecord.table.owner)
+                .put(TABLE, cdcRecord.table.table)
                 .put(CHANGE_USER, cdcRecord.username)
     }
 }

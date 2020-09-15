@@ -10,7 +10,8 @@ create table SIT.TEST_TAB
     string    VARCHAR2(255),
     "integer" NUMBER(7) not null,
     "long"    NUMBER(14),
-    "date"    date      not null
+    "date"    date      not null,
+    big_decimal NUMBER default 0
 );
 create table SIT.SECOND_TAB
 (
@@ -19,5 +20,6 @@ create table SIT.SECOND_TAB
     string    VARCHAR2(255),
     "integer" NUMBER(6) not null,
     "long"    NUMBER(14),
-    "date"    date      not null
+    "date"    date      not null,
+    big_decimal NUMBER default 0
 );
