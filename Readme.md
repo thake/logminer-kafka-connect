@@ -6,12 +6,15 @@ Changes are extracted from the Archivelog using [Oracle Logminer](https://docs.o
 
 - [Logminer Kafka Connect](#logminer-kafka-connect)
   * [Features](#features)
+  * [Installation](#installation)
+    + [Docker](#docker)
+    + [Oracle Database Configuration Requirements](#oracle-database-configuration-requirements)
   * [Initial Import](#initial-import)
   * [Change Types](#change-types)
     + [Value Struct](#value-struct)
     + [Source struct](#source-struct)
   * [Configuration](#configuration)
-  * [Oracle Database Configuration Requirements](#oracle-database-configuration-requirements)
+  * [Limitations](#limitations)
 
 ## Features
 
@@ -27,6 +30,35 @@ https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm#i1014687 for
 Planned features:
 - More documentation :)
 
+## Installation
+You can install this Kafka Connect component into Kafka Connect using the [Confluent Hub Client](https://docs.confluent.io/current/connect/managing/confluent-hub/client.html). Additionally, you need to download the Oracle 
+JDBC driver and put it on the classpath of Logminer Kafka Connect. The JDBC driver can't be included in the Logminer Kafka Connect release
+as its license does not allow this. 
+
+The following script will install Logminer Kafka Connect into an existing Kafka Connect installation:
+```shell script
+wget https://github.com/thake/logminer-kafka-connect/releases/download/0.4.0/thake-logminer-kafka-connect-0.4.0.zip
+confluent-hub install ./thake-logminer-kafka-connect-0.4.0.zip --no-prompt
+rm ./thake-logminer-kafka-connect-0.4.0.zip
+wget https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc8/19.7.0.0/ojdbc8-19.7.0.0.jar -o /usr/share/confluent-hub-components/thake-logminer-kafka-connect/lib/ojdbc8-19.7.0.0.jar
+``` 
+### Docker
+If you plan to run Logminer Kafka Connect as a container, you can also have a look at the docker image at https://github.com/thake/logminer-kafka-connect-image 
+
+### Oracle Database Configuration Requirements
+In order for Logminer Kafka Connect to work, the database needs to be in ARCHIVELOG mode and Supplemental Logging needs to be 
+enabled with all columns. Here are the commands that need to be executed in sqlplus:
+```oraclesqlplus
+prompt Shutting down database to activate archivelog mode;
+shutdown immediate;
+startup mount;
+alter database archivelog;
+prompt Archive log activated.;
+alter database add supplemental log data (all) columns;
+prompt Activated supplemental logging with all columns.;
+prompt Starting up database;
+alter database open;
+```
 
 ## Initial Import
 If the start SCN is not set or set to 0, logminer kafka connect will query
@@ -210,20 +242,6 @@ The following configuration parameter are available:
       - Default: 2000
       - Importance: low
       
-## Oracle Database Configuration Requirements
-In order for Logminer Kafka Connect to work, the database needs to be in ARCHIVELOG mode and Supplemental Logging needs to be 
-enabled with all columns. Here are the commands that need to be executed in sqlplus:
-```oraclesqlplus
-prompt Shutting down database to activate archivelog mode;
-shutdown immediate;
-startup mount;
-alter database archivelog;
-prompt Archive log activated.;
-alter database add supplemental log data (all) columns;
-prompt Activated supplemental logging with all columns.;
-prompt Starting up database;
-alter database open;
-```
 ## Limitations
 - Due to limitations of Oracle Logminer, it is not possible to track the UPDATE statements to existing records that are implicitly performed whenever a new
 not null column with a default value will be added to a table. 
