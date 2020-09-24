@@ -185,6 +185,12 @@ The following configuration parameter are available:
       - Type: string
       - Default: ONLINE
       - Importance: low
+  - `db.timezone`   
+    The timezone in which TIMESTAMP columns (without any timezone information) should be interpreted as. Valid values are all values that can be passed to https://docs.oracle.com/javase/8/docs/api/java/time/ZoneId.html#of-java.lang.String-
+
+      - Type: string
+      - Default: UTC
+      - Importance: high
   
   - `batch.size`  
     Batch size of rows that should be fetched in one batch

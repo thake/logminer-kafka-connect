@@ -10,7 +10,6 @@ import org.apache.kafka.connect.source.SourceRecord
 import org.apache.kafka.connect.source.SourceTask
 import org.apache.kafka.connect.source.SourceTaskContext
 import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.SQLException
 import java.util.*
 
@@ -20,40 +19,12 @@ sealed class TaskState
 object StoppedState : TaskState()
 data class StartedState(val config: SourceConnectorConfig, val context: SourceTaskContext) : TaskState() {
     val connection: Connection by lazy {
-        with(config) {
-            val dbUri = "${dbHostName}:${dbPort}/${dbSid}"
-            fun openConnection(): Connection {
-                return DriverManager.getConnection(
-                    "jdbc:oracle:thin:@$dbUri",
-                    dbUser, dbPassword
-                ).also {
-                    logger.info { "Connected to database at $dbUri" }
-                }
-            }
-
-            var currentAttempt = 0
-            var connection: Connection? = null
-            while (currentAttempt < dbAttempts && connection == null) {
-                if (currentAttempt > 0) {
-                    logger.info { "Waiting ${dbBackoff.toMillis()} ms before next attempt to acquire a connection" }
-                    Thread.sleep(dbBackoff.toMillis())
-                }
-                currentAttempt++
-                try {
-                    connection = openConnection()
-                } catch (e: SQLException) {
-                    logger.error(e) { "Couldn't connect to database with url $dbUri. Attempt $currentAttempt." }
-
-                }
-            }
-            connection ?: throw SQLException("Couldn't initialize Connection to $dbUri after $dbAttempts attempts.")
-
-        }
+        config.connection
     }
     var offset: Offset?
     val nameService: ConnectNameService = SourceDatabaseNameService(config.dbName)
     private val schemaService: SchemaService by lazy {
-        SchemaService(nameService)
+        SchemaService(nameService,config.dbZoneId)
     }
     private var source: Source<out Offset?>
     private val sourcePartition = Collections.singletonMap(TaskConstants.LOG_MINER_OFFSET, config.dbName)

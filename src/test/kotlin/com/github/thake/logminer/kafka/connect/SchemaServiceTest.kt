@@ -4,7 +4,6 @@ import com.github.thake.logminer.kafka.connect.SchemaType.NumberType.*
 import com.github.thake.logminer.kafka.connect.SchemaType.StringType
 import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.DateType
 import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.TimestampType
-import io.kotest.*
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.Spec
 import io.kotest.core.spec.style.WordSpec
@@ -20,6 +19,7 @@ import java.sql.SQLException
 import java.sql.Timestamp
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 
 class SchemaServiceTest : WordSpec() {
@@ -30,6 +30,7 @@ class SchemaServiceTest : WordSpec() {
     val columnName = "A"
     lateinit var connection: Connection
     lateinit var schemaService: SchemaService
+    private val zoneId = ZoneId.of("Europe/Berlin")
     private fun createTable(columnDef: String, comment: String?) {
         connection.prepareCall("CREATE TABLE ${table.fullName} ($columnName $columnDef)").use { it.execute() }
         if (comment != null) {
@@ -48,7 +49,7 @@ class SchemaServiceTest : WordSpec() {
                 //Ignore exception
             }
         }
-        schemaService = SchemaService(SourceDatabaseNameService("test"))
+        schemaService = SchemaService(SourceDatabaseNameService("test"), zoneId)
         table = TableId(table.owner, "MY_${testCase.source.lineNumber}")
 
     }
@@ -112,13 +113,13 @@ class SchemaServiceTest : WordSpec() {
                 "DATE".shouldBe(DateType)
             }
             "Timestamp"{
-                "TIMESTAMP".shouldBe(TimestampType)
+                "TIMESTAMP".shouldBe(TimestampType.TimestampWithoutTimezone(zoneId))
             }
             "Timestamp with timezone"{
-                "TIMESTAMP WITH TIME ZONE".shouldBe(TimestampType)
+                "TIMESTAMP WITH TIME ZONE".shouldBe(TimestampType.TimestampWithTimezone())
             }
             "Timestamp with local timezone"{
-                "TIMESTAMP WITH LOCAL TIME ZONE".shouldBe(TimestampType)
+                "TIMESTAMP WITH LOCAL TIME ZONE".shouldBe(TimestampType.TimestampWithLocalTimezone())
             }
             "byteDefault" {
                 "NUMBER(2,0) default 1".shouldBe(ByteType, true, 1.toByte())
@@ -150,17 +151,20 @@ class SchemaServiceTest : WordSpec() {
             }
             "TimestampDefault"{
                 "TIMESTAMP default TIMESTAMP '2018-04-12 01:00:00'".shouldBe(
-                    TimestampType, true, Timestamp.valueOf(
+                    TimestampType.TimestampWithoutTimezone(zoneId), true, Timestamp.valueOf(
                         LocalDateTime.of(2018, 4, 12, 1, 0, 0)
                     )
                 )
             }
 
             "TimestampCurrentTimestampDefault"{
-                "TIMESTAMP default current_timestamp".shouldBe(TimestampType, true)
+                "TIMESTAMP default current_timestamp".shouldBe(TimestampType.TimestampWithoutTimezone(zoneId), true)
             }
             "Timestamp sysdate default with space"{
-                "TIMESTAMP default sysdate ".shouldBe(TimestampType, true)
+                "TIMESTAMP default sysdate ".shouldBe(TimestampType.TimestampWithoutTimezone(zoneId), true)
+            }
+            "Timestamp with 9 fractions"{
+                "TIMESTAMP(9)".shouldBe(TimestampType.TimestampWithoutTimezone(zoneId,9),true)
             }
             "markedAsNullable"{
                 "NUMBER(10,0)".shouldBe(LongType, true)

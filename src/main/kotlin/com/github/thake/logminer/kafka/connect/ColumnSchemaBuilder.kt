@@ -1,16 +1,15 @@
 package com.github.thake.logminer.kafka.connect
 
+import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.TimestampType
 import org.apache.kafka.connect.data.Date
 import org.apache.kafka.connect.data.Decimal
 import org.apache.kafka.connect.data.SchemaBuilder
 import org.apache.kafka.connect.data.Timestamp
 import java.math.BigDecimal
 import java.sql.ResultSet
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.ZoneOffset
+import java.time.*
 import java.time.format.DateTimeFormatter
+import java.util.*
 
 const val NUMERIC_TYPE_SCALE_LOW = -84
 val UNRESOLVABLE_DATE_TIME_EXPRESSIONS = arrayOf(
@@ -74,7 +73,8 @@ sealed class SchemaType<T> {
             override fun convert(str: String): BigDecimal = str.toBigDecimal().setScale(scale)
             override fun createSchemaBuilder(): SchemaBuilder = Decimal.builder(scale)
             override fun toString(): String = "BigDecimal"
-            override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)?.let { it.setScale(scale) }
+            override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)
+                ?.setScale(scale)
         }
     }
 
@@ -118,31 +118,79 @@ sealed class SchemaType<T> {
                     java.util.Date.from(it.toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant())
                 }
         }
+        abstract class TimestampType(val fractionalSeconds: Int = 6) : TimeType(){
+            val fractionalSecondsPart : String
+                get() = if(fractionalSeconds > 0) "[.${"S".repeat(fractionalSeconds)}]" else ""
 
-        object TimestampType : TimeType() {
-            //Format:  2020-01-27 06:00:00
-            val localDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]")
-
-            override fun convert(str: String): java.util.Date {
-                return java.util.Date
-                        .from(
-                            LocalDateTime.parse(str, localDateTimeFormatter).atZone(
-                                ZoneId.systemDefault()
-                            ).toInstant()
-                        )
+            abstract val pattern : String
+            val dateTimeFormatter : DateTimeFormatter by lazy {
+                DateTimeFormatter.ofPattern(pattern)
             }
-
+            override fun convert(str: String): java.util.Date = java.util.Date.from(parse(str))
+            protected open fun parse(str: String) : Instant = ZonedDateTime.parse(str, dateTimeFormatter).toInstant()
             override fun cleanDefaultStr(str: String) = str.removeSurrounding("TIMESTAMP '", "'")
             override fun createSchemaBuilder(): SchemaBuilder = Timestamp.builder()
-            override fun toString(): String = "Timestamp"
             override fun extract(index: Int, resultSet: ResultSet): java.util.Date? =
                 resultSet.getTimestamp(index)?.let { java.util.Date(it.time) }
+
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (other !is TimestampType) return false
+
+                if (fractionalSeconds != other.fractionalSeconds) return false
+                if (pattern != other.pattern) return false
+
+                return true
+            }
+            override fun hashCode(): Int {
+                var result = fractionalSeconds
+                result = 31 * result + pattern.hashCode()
+                return result
+            }
+
+            class TimestampWithoutTimezone(val defaultTimeZone : ZoneId, fractionalSeconds : Int = 6) : TimestampType(fractionalSeconds) {
+                override val pattern: String
+                    get() = "yyyy-MM-dd HH:mm:ss$fractionalSecondsPart"
+                private val cal = Calendar.getInstance(TimeZone.getTimeZone(defaultTimeZone))
+                override fun parse(str: String): Instant = LocalDateTime.parse(str, dateTimeFormatter).atZone(defaultTimeZone).toInstant()
+                override fun extract(index: Int, resultSet: ResultSet): java.util.Date? =
+                    resultSet.getTimestamp(index,cal)?.let { java.util.Date(it.time) }
+                override fun toString(): String = "Timestamp($fractionalSeconds) ($defaultTimeZone)"
+                override fun equals(other: Any?): Boolean {
+                    if (this === other) return true
+                    if (other !is TimestampWithoutTimezone) return false
+                    if (!super.equals(other)) return false
+
+                    if (defaultTimeZone != other.defaultTimeZone) return false
+
+                    return true
+                }
+                override fun hashCode(): Int {
+                    var result = super.hashCode()
+                    result = 31 * result + defaultTimeZone.hashCode()
+                    return result
+                }
+            }
+            class TimestampWithTimezone(fractionalSeconds: Int = 6) : TimestampType(fractionalSeconds) {
+                //Format:  2020-01-27 06:00:00.640000 US/Pacific PDT
+                override val pattern: String
+                    get() = "yyyy-MM-dd HH:mm:ss$fractionalSecondsPart VV [zzz]"
+
+                override fun toString(): String = "Timestamp($fractionalSeconds) with timezone"
+            }
+            class TimestampWithLocalTimezone(fractionalSeconds: Int = 6) : TimestampType(fractionalSeconds){
+                //Format:  2020-09-24 10:11:26.684000+00:00
+                override val pattern: String
+                    get() = "yyyy-MM-dd HH:mm:ss${fractionalSecondsPart}xxx"
+                override fun toString(): String = "Timestamp with local timezone"
+            }
         }
+
     }
 
 
     companion object {
-        fun toSchemaType(columnDataType: ColumnDefinition): SchemaType<out Any> {
+        fun toSchemaType(columnDataType: ColumnDefinition, defaultZoneId: ZoneId): SchemaType<out Any> {
             val scale = columnDataType.scale
             val precision = columnDataType.precision
             return when (columnDataType.type) {
@@ -187,7 +235,12 @@ sealed class SchemaType<T> {
                 "DATE" -> TimeType.DateType
                 else ->
                     if (columnDataType.type.startsWith("TIMESTAMP")) {
-                        TimeType.TimestampType
+                        val fractionalSeconds = columnDataType.scale ?: 6
+                        when {
+                            columnDataType.type.endsWith("WITH TIME ZONE") -> TimestampType.TimestampWithTimezone(fractionalSeconds)
+                            columnDataType.type.endsWith("WITH LOCAL TIME ZONE") -> TimestampType.TimestampWithLocalTimezone(fractionalSeconds)
+                            else -> TimestampType.TimestampWithoutTimezone(defaultZoneId,fractionalSeconds)
+                        }
                     } else {
                         throw IllegalArgumentException("Type for column data type $columnDataType is currently not supported")
                     }

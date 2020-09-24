@@ -1,10 +1,16 @@
 package com.github.thake.logminer.kafka.connect
 
+import mu.KotlinLogging
 import org.apache.kafka.common.config.AbstractConfig
 import org.apache.kafka.common.config.ConfigDef
 import org.apache.kafka.common.config.ConfigDef.Importance
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.SQLException
 import java.time.Duration
+import java.time.ZoneId
 
+private val logger = KotlinLogging.logger {}
 sealed class LogMinerSelector
 data class TableSelector(val owner: String, val tableName: String) : LogMinerSelector()
 data class SchemaSelector(val owner: String) : LogMinerSelector()
@@ -19,6 +25,34 @@ class SourceConnectorConfig(
         conf(),
         parsedConfig
     )
+    val connection by lazy {
+        val dbUri = "${dbHostName}:${dbPort}/${dbSid}"
+        fun openConnection(): Connection {
+            return DriverManager.getConnection(
+                "jdbc:oracle:thin:@$dbUri",
+                dbUser, dbPassword
+            ).also {
+                logger.info { "Connected to database at $dbUri" }
+            }
+        }
+
+        var currentAttempt = 0
+        var connection: Connection? = null
+        while (currentAttempt < dbAttempts && connection == null) {
+            if (currentAttempt > 0) {
+                logger.info { "Waiting ${dbBackoff.toMillis()} ms before next attempt to acquire a connection" }
+                Thread.sleep(dbBackoff.toMillis())
+            }
+            currentAttempt++
+            try {
+                connection = openConnection()
+            } catch (e: SQLException) {
+                logger.error(e) { "Couldn't connect to database with url $dbUri. Attempt $currentAttempt." }
+
+            }
+        }
+        connection ?: throw SQLException("Couldn't initialize Connection to $dbUri after $dbAttempts attempts.")
+    }
 
 
     val dbSid: String
@@ -38,6 +72,10 @@ class SourceConnectorConfig(
 
     val dbName: String
         get() = getString(DB_NAME)
+
+    val dbZoneId : ZoneId
+        get() = ZoneId.of(getString(DB_TIMEZONE))
+
 
     val logminerDictionarySource : LogminerDictionarySource
         get() = LogminerDictionarySource.valueOf(getString(DB_LOGMINER_DICTIONARY))
@@ -84,12 +122,12 @@ class SourceConnectorConfig(
         const val DB_ATTEMPTS = "db.attempts"
         const val DB_BACKOFF_MS = "db.backoff.ms"
         const val DB_LOGMINER_DICTIONARY = "db.logminer.dictionary"
+        const val DB_TIMEZONE = "db.timezone"
         const val MONITORED_TABLES = "table.whitelist"
         const val DB_FETCH_SIZE = "db.fetch.size"
         const val START_SCN = "start.scn"
         const val BATCH_SIZE = "batch.size"
         const val POLL_INTERVAL_MS = "poll.interval.ms"
-
 
         fun conf(): ConfigDef {
             return ConfigDef()
@@ -135,6 +173,13 @@ class SourceConnectorConfig(
                             LogminerDictionarySource.ONLINE.name,
                             Importance.LOW,
                             "Type of logminer dictionary that should be used. Valid values: "+LogminerDictionarySource.values().joinToString { it.name }
+                    )
+                    .define(
+                        DB_TIMEZONE,
+                        ConfigDef.Type.STRING,
+                        "UTC",
+                        Importance.HIGH,
+                        "The timezone in which TIMESTAMP columns (without any timezone information) should be interpreted as. Valid values are all values that can be passed to https://docs.oracle.com/javase/8/docs/api/java/time/ZoneId.html#of-java.lang.String-"
                     )
                     .define(
                         MONITORED_TABLES,

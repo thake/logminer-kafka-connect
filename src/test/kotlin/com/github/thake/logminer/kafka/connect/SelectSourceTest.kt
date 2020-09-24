@@ -20,7 +20,7 @@ class SelectSourceTest : AbstractIntegrationTest() {
         }
         Thread.sleep(5000)
         selectSource =
-            SelectSource(1000, listOf(STANDARD_TABLE, SECOND_TABLE), SchemaService(SourceDatabaseNameService("A")), null)
+            SelectSource(1000, listOf(STANDARD_TABLE, SECOND_TABLE), SchemaService(SourceDatabaseNameService("A"),defaultZone), null)
 
     }
 
@@ -74,7 +74,7 @@ class SelectSourceTest : AbstractIntegrationTest() {
 
     @Test
     fun checkNoDirtyReads() {
-        selectSource = SelectSource(10, listOf(STANDARD_TABLE), SchemaService(SourceDatabaseNameService("A")), null)
+        selectSource = SelectSource(10, listOf(STANDARD_TABLE), SchemaService(SourceDatabaseNameService("A"),defaultZone), null)
         val conn = openConnection()
         (0 until 100).forEach { conn.insertRow(it) }
         selectSource.maybeStartQuery(conn)
@@ -85,7 +85,7 @@ class SelectSourceTest : AbstractIntegrationTest() {
         selectSource = SelectSource(
             1000,
             listOf(STANDARD_TABLE),
-            SchemaService(SourceDatabaseNameService("A")),
+            SchemaService(SourceDatabaseNameService("A"),defaultZone),
             selectSource.lastOffset
         )
         selectSource.maybeStartQuery(openConnection())

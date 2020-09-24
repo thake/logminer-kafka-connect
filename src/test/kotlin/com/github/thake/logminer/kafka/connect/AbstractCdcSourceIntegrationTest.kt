@@ -5,10 +5,12 @@ import com.github.thake.logminer.kafka.connect.logminer.LogminerSource
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.time.ZoneId
 
 @Testcontainers
 abstract class AbstractCdcSourceIntegrationTest : AbstractIntegrationTest() {
     private lateinit var cdcSource: LogminerSource
+
     protected open val tableSelector: TableSelector
         get() = TableSelector(OWNER, TABLE_NAME)
 
@@ -32,6 +34,6 @@ abstract class AbstractCdcSourceIntegrationTest : AbstractIntegrationTest() {
                 logminerDictionarySource = logminerDictionarySource
             ),
             offset = offset,
-            schemaService = SchemaService(SourceDatabaseNameService("A"))
+            schemaService = SchemaService(SourceDatabaseNameService("A"),defaultZone)
         )
 }

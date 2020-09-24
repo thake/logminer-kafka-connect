@@ -14,6 +14,7 @@ import java.sql.Date
 import java.sql.Timestamp
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 enum class Columns {
     ID, TIME, STRING, integer, long, date, BIG_DECIMAL
@@ -25,12 +26,13 @@ val STANDARD_TABLE = TableId(OWNER, TABLE_NAME)
 val SECOND_TABLE = TableId(OWNER, "SECOND_TAB")
 
 abstract class AbstractIntegrationTest {
+    protected open val defaultZone = ZoneId.of("Europe/Berlin")
 
     @Container
     protected open val oracle: OracleContainer =
-        OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript("InitTestTable.sql").withReuse(false)
+        OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript(getInitScript()).withReuse(false)
 
-
+    protected open fun getInitScript() = "InitTestTable.sql"
     fun openConnection(): Connection = oracle.createConnection("")
 
     protected fun Connection.executeUpdate(sql: String): Int {

@@ -4,6 +4,7 @@ import mu.KotlinLogging
 import org.apache.kafka.connect.data.Schema
 import org.apache.kafka.connect.data.SchemaBuilder
 import java.sql.Connection
+import java.time.ZoneId
 
 private val logger = KotlinLogging.logger {}
 
@@ -26,7 +27,10 @@ data class SchemaDefinition(
     fun getColumnSchemaType(columnName: String) = columnTypes[columnName]
 }
 
-class SchemaService(private val nameService: ConnectNameService) {
+class SchemaService(
+    private val nameService: ConnectNameService,
+    private val defaultZoneId : ZoneId
+) {
     private val cachedSchemas: MutableMap<TableId, SchemaDefinition> = mutableMapOf()
 
     fun getSchema(dbConn: Connection, table: TableId) = cachedSchemas.getOrPut(table, { buildTableSchema(dbConn, table) })
@@ -83,7 +87,7 @@ class SchemaService(private val nameService: ConnectNameService) {
                     val doc = result.getString("COMMENTS")
                     val nullable = result.getString("NULLABLE") == "Y"
                     val columnDef = ColumnDefinition(name, type, scale, precision, defaultValue, nullable, doc)
-                    val schemaType = SchemaType.toSchemaType(columnDef)
+                    val schemaType = SchemaType.toSchemaType(columnDef,defaultZoneId)
                     columnTypes[name] = schemaType
                     val columnSchema = createColumnSchema(columnDef, schemaType)
                     valueSchemaBuilder.field(name, columnSchema)
