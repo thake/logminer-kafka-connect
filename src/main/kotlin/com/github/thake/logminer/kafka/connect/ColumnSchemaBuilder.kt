@@ -70,7 +70,7 @@ sealed class SchemaType<T> {
             override fun extract(index: Int, resultSet: ResultSet): Double = resultSet.getDouble(index)
         }
 
-        data class BigDecimalType(private val scale: Int) : NumberType<BigDecimal>() {
+        data class BigDecimalType(val scale: Int) : NumberType<BigDecimal>() {
             override fun convert(str: String): BigDecimal = str.toBigDecimal().setScale(scale)
             override fun createSchemaBuilder(): SchemaBuilder = Decimal.builder(scale)
             override fun toString(): String = "BigDecimal"
