@@ -74,7 +74,7 @@ sealed class SchemaType<T> {
             override fun convert(str: String): BigDecimal = str.toBigDecimal().setScale(scale)
             override fun createSchemaBuilder(): SchemaBuilder = Decimal.builder(scale)
             override fun toString(): String = "BigDecimal"
-            override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)?.apply { setScale(scale) }
+            override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)?.let { it.setScale(scale) }
         }
     }
 
