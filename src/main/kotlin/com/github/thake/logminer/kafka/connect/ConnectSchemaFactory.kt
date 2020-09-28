@@ -25,7 +25,6 @@ object SourceRecordFields {
     private const val RECORD_TIMESTAMP = "ts_ms"
     private const val TRANSACTION = "txId"
     private const val SCN = "scn"
-    const val NAME = "name"
     private const val OWNER = "schema"
     private const val TABLE = "table"
     private const val CHANGE_USER = "user"
@@ -59,12 +58,12 @@ class ConnectSchemaFactory(private val nameService: ConnectNameService) {
     private fun createKeyStruct(cdcRecord: CdcRecord): Struct {
         val schema = cdcRecord.dataSchema.keySchema
         val struct = Struct(schema)
+        val sourceMap = when (cdcRecord.operation) {
+            Operation.READ, Operation.INSERT ->
+                cdcRecord.after
+            Operation.DELETE, Operation.UPDATE -> cdcRecord.before
+        }!!
         schema.fields().forEach {
-            val sourceMap = when (cdcRecord.operation) {
-                Operation.READ, Operation.INSERT ->
-                    cdcRecord.after
-                Operation.DELETE, Operation.UPDATE -> cdcRecord.before
-            }!!
             struct.put(it.name(), sourceMap[it.name()])
         }
         return struct
@@ -73,6 +72,7 @@ class ConnectSchemaFactory(private val nameService: ConnectNameService) {
     private fun createValue(record: CdcRecord): Pair<Schema, Struct> {
         val name = nameService.getValueRecordName(record.table)
         val recordConnectSchema = record.dataSchema.valueSchema
+
         val valueSchema = SchemaBuilder.struct()
                 .name(name)
                 .field(CdcRecordFields.OPERATION, Schema.STRING_SCHEMA)

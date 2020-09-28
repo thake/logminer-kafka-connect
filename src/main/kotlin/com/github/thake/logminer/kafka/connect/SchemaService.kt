@@ -102,7 +102,7 @@ class SchemaService(
         return SchemaDefinition(
             table,
             valueSchemaBuilder.optional().build(),
-            keySchemaBuilder.optional().build(),
+            keySchemaBuilder.required().build(),
             columnTypes
         )
     }
