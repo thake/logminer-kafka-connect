@@ -18,10 +18,14 @@ repositories {
     maven {
         url = uri("https://maven.ceon.pl/artifactory/repo")
     }
+    maven {
+        url = uri("https://packages.confluent.io/maven")
+    }
 }
 
 dependencies {
     val kafkaVersion by extra("2.5.1")
+    val confluentVersion by extra("5.5.1")
     val kotestVersion by extra("4.2.5")
     val junitVersion by extra("5.7.0")
     implementation(kotlin("stdlib-jdk8"))
@@ -35,6 +39,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+    testImplementation("io.confluent","kafka-connect-avro-data",confluentVersion)
     testImplementation("org.testcontainers", "junit-jupiter")
     testImplementation("org.testcontainers:oracle-xe")
     testImplementation("ch.qos.logback", "logback-classic", "1.2.3")
