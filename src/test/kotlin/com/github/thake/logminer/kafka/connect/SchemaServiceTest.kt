@@ -104,10 +104,10 @@ class SchemaServiceTest : WordSpec() {
                 "NUMBER(10,0)".shouldBe(LongType)
             }
             "BigDecimal"{
-                "NUMBER(20,0)".shouldBe(BigDecimalType(0))
+                "NUMBER(20,0)".shouldBe(BigDecimalType(20,0))
             }
             "undefined NUMBER"{
-                "NUMBER".shouldBe(BigDecimalType(40))
+                "NUMBER".shouldBe(BigDecimalType(ORACLE_UNQUALIFIED_NUMBER_PRECISION, ORACLE_UNQUALIFIED_NUMBER_SCALE))
             }
             "Date"{
                 "DATE".shouldBe(DateType)
@@ -137,7 +137,7 @@ class SchemaServiceTest : WordSpec() {
                 "NUMBER(10,0) default 1 ".shouldBe(LongType, true, 1L)
             }
             "BigDecimalDefault"{
-                "NUMBER(20,0) default 1".shouldBe(BigDecimalType(0), true, BigDecimal.ONE)
+                "NUMBER(20,0) default 1".shouldBe(BigDecimalType(20,0), true, BigDecimal.ONE)
             }
             "date small"{
                 "date".shouldBe(DateType)

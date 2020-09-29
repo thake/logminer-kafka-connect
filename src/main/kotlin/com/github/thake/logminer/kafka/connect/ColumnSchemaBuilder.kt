@@ -1,6 +1,7 @@
 package com.github.thake.logminer.kafka.connect
 
 import com.github.thake.logminer.kafka.connect.SchemaType.TimeType.TimestampType
+import mu.KotlinLogging
 import org.apache.kafka.connect.data.Date
 import org.apache.kafka.connect.data.Decimal
 import org.apache.kafka.connect.data.SchemaBuilder
@@ -12,6 +13,13 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 const val NUMERIC_TYPE_SCALE_LOW = -84
+//These values have been derived from tests against Oracle 12c
+//Decimal with scale 40 (max digits right of the dot)
+const val ORACLE_UNQUALIFIED_NUMBER_SCALE = 40
+const val ORACLE_UNQUALIFIED_NUMBER_PRECISION = ORACLE_UNQUALIFIED_NUMBER_SCALE+39
+
+const val DECIMAL_PRECISION_PROPERTY = "precision"
+private val logger = KotlinLogging.logger {}
 val UNRESOLVABLE_DATE_TIME_EXPRESSIONS = arrayOf(
     "SYSDATE",
     "SYSTIMESTAMP",
@@ -69,9 +77,9 @@ sealed class SchemaType<T> {
             override fun extract(index: Int, resultSet: ResultSet): Double = resultSet.getDouble(index)
         }
 
-        data class BigDecimalType(val scale: Int) : NumberType<BigDecimal>() {
+        data class BigDecimalType(val precision : Int, val scale: Int) : NumberType<BigDecimal>() {
             override fun convert(str: String): BigDecimal = str.toBigDecimal().setScale(scale)
-            override fun createSchemaBuilder(): SchemaBuilder = Decimal.builder(scale)
+            override fun createSchemaBuilder(): SchemaBuilder = Decimal.builder(scale).parameter(DECIMAL_PRECISION_PROPERTY,precision.toString())
             override fun toString(): String = "BigDecimal"
             override fun extract(index: Int, resultSet: ResultSet): BigDecimal? = resultSet.getBigDecimal(index)
                 ?.setScale(scale)
@@ -199,8 +207,9 @@ sealed class SchemaType<T> {
                 "NUMBER" -> {
                     when {
                         scale == null -> {
-                            //Undefined NUMERIC -> Decimal with scale 40 (max digits right of the dot)
-                            NumberType.BigDecimalType(40)
+                            //Undefined NUMERIC
+                            logger.warn { "The '${columnDataType.name}' columns type is an unqualified NUMBER. This leads to really huge decimals. Please consider specifying the scale and precision of the column." }
+                            NumberType.BigDecimalType(ORACLE_UNQUALIFIED_NUMBER_PRECISION,ORACLE_UNQUALIFIED_NUMBER_SCALE)
                         }
                         precision < 19 -> { // fits in primitive data types.
                             when {
@@ -222,12 +231,12 @@ sealed class SchemaType<T> {
                                 }
                                 precision > 0 -> NumberType.DoubleType
                                 else ->
-                                    NumberType.BigDecimalType(scale)
+                                    NumberType.BigDecimalType(precision,scale)
 
                             }
                         }
                         else -> {
-                            NumberType.BigDecimalType(scale)
+                            NumberType.BigDecimalType(precision,scale)
                         }
                     }
                 }

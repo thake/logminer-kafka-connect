@@ -14,7 +14,7 @@ import javax.xml.validation.Schema
 class BigDecimalTypeTest {
     @Test
     fun testCorrectScaleForString() {
-        val type = SchemaType.NumberType.BigDecimalType(10)
+        val type = SchemaType.NumberType.BigDecimalType(13,10)
         val str = "123.20"
         type.convert(str).should {
             it.scale().shouldBe(type.scale)
@@ -27,7 +27,8 @@ class BigDecimalTypeTest {
         val columnIndex = 1
         val expectedDecimal = "234.123".toBigDecimal()
         every { resultSet.getBigDecimal(columnIndex) }.returns(expectedDecimal)
-        val type = SchemaType.NumberType.BigDecimalType(40)
+        val type = SchemaType.NumberType.BigDecimalType(ORACLE_UNQUALIFIED_NUMBER_PRECISION,
+            ORACLE_UNQUALIFIED_NUMBER_SCALE)
         type.extract(columnIndex,resultSet).should {
             it.shouldNotBeNull()
             it.scale().shouldBe(type.scale)
