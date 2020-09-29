@@ -18,7 +18,7 @@ const val NUMERIC_TYPE_SCALE_LOW = -84
 const val ORACLE_UNQUALIFIED_NUMBER_SCALE = 40
 const val ORACLE_UNQUALIFIED_NUMBER_PRECISION = ORACLE_UNQUALIFIED_NUMBER_SCALE+39
 
-const val DECIMAL_PRECISION_PROPERTY = "precision"
+const val DECIMAL_PRECISION_PROPERTY = "connect.decimal.precision"
 private val logger = KotlinLogging.logger {}
 val UNRESOLVABLE_DATE_TIME_EXPRESSIONS = arrayOf(
     "SYSDATE",
