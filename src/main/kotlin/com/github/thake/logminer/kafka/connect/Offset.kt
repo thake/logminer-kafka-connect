@@ -34,6 +34,7 @@ class OracleLogOffset(
                 )
             )
     }
+    override fun toString() = "OracaleLogOffset(scn: $scn, commitScn: $commitScn, isTransactionComplete: $isTransactionComplete)"
 }
 
 class SelectOffset(override val map: Map<String, Any?>) : Offset() {
