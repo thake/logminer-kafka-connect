@@ -18,14 +18,17 @@ Changes are extracted from the Archivelog using [Oracle Logminer](https://docs.o
 
 ## Features
 
-Currently supported features:
+Stable features:
 - Insert, Update and Delete changes will be tracked on configured tables
 - Logminer without "CONTINUOUS_MINE", thus in theory being compatible with Oracle 19c (not tested)
 - Initial import of the current table state
 - Only based on Oracle features that are available in Oracle XE (and thus available in all Oracle versions). No
 Oracle GoldenGate license required!
-- Reading schema changes from the Archive-Log or Online Dictionary. Thus supporting database schemas that tend to change regularly. See 
+- Reading schema changes from the Online Dictionary. See 
 https://docs.oracle.com/cd/B19306_01/server.102/b14215/logminer.htm#i1014687 for more information.
+
+Unstable features:
+- Reading schema changes from the Archive-Log
 
 Planned features:
 - More documentation :)

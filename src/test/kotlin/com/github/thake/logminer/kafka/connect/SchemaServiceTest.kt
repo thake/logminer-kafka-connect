@@ -25,7 +25,7 @@ import java.time.ZoneOffset
 class SchemaServiceTest : WordSpec() {
 
     val oracle: OracleContainer =
-        OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript("InitTestTable.sql").withReuse(false)
+        OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript("initTestTable.sql").withReuse(false)
     var table = TableId("SIT", "MY_SCHEMA_TEST_TABLE")
     val columnName = "A"
     lateinit var connection: Connection

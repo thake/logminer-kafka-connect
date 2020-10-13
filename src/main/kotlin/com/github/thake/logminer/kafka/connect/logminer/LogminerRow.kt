@@ -100,10 +100,11 @@ sealed class LogminerRow {
             fun doConvert(schema: SchemaDefinition = schemaDefinition): Map<String, Any?> {
                 val map = HashMap<String, Any?>()
                 for ((key, value) in this) {
+                    val columnSchema = schema.getColumnSchemaType(key)?: throw DataException("Column $key does not exist in schema.")
                     val convertedValue = value?.let {
                         convertToSchemaType(
                             it,
-                            schema.getColumnSchemaType(key) ?: throw DataException("Column $key does not exist in schema.")
+                            columnSchema
                         )
                     }
                     map[key] = convertedValue

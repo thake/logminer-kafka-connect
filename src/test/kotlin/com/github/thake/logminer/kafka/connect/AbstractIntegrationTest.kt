@@ -32,30 +32,8 @@ abstract class AbstractIntegrationTest {
     protected open val oracle: OracleContainer =
         OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript(getInitScript()).withReuse(false)
 
-    protected open fun getInitScript() = "InitTestTable.sql"
+    protected open fun getInitScript() = "initTestTable.sql"
     fun openConnection(): Connection = oracle.createConnection("")
-
-    protected fun Connection.executeUpdate(sql: String): Int {
-        return this.prepareStatement(sql).use { it.executeUpdate() }
-    }
-
-    protected fun Connection.insertRow(id: Int, table: TableId) {
-        val columnList = Columns.values().joinToString(",", "(", ")") { "\"${it.name}\"" }
-        this.prepareStatement("INSERT INTO ${table.fullName} $columnList VALUES (?,?,?,?,?,?,?)").use {
-            it.setInt(1, id)
-            it.setTimestamp(2, Timestamp.from(Instant.now()))
-            it.setString(3, "Test")
-            it.setInt(4, 123456)
-            it.setLong(5, 183456L)
-            it.setDate(6, Date.valueOf(LocalDate.now()))
-            it.setBigDecimal(7, BigDecimal("30.516658782958984"))
-            it.execute()
-        }
-    }
-
-    protected fun Connection.insertRow(id: Int) {
-        insertRow(id, STANDARD_TABLE)
-    }
 
     protected fun assertContainsOnlySpecificOperationForIds(
         toCheck: List<PollResult>,
