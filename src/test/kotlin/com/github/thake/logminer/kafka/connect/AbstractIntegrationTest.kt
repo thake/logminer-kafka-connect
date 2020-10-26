@@ -7,6 +7,8 @@ import org.apache.kafka.connect.data.Decimal
 import org.apache.kafka.connect.data.Schema
 import org.junit.jupiter.api.Assertions.*
 import org.testcontainers.containers.OracleContainer
+import org.testcontainers.ext.ScriptUtils
+import org.testcontainers.jdbc.JdbcDatabaseDelegate
 import org.testcontainers.junit.jupiter.Container
 import java.math.BigDecimal
 import java.sql.Connection
@@ -33,6 +35,11 @@ abstract class AbstractIntegrationTest {
         OracleContainer("thake/oracle-xe-11g-archivelog").withInitScript(getInitScript()).withReuse(false)
 
     protected open fun getInitScript() = "initTestTable.sql"
+    fun runScripts(vararg scriptFiles : String){
+        scriptFiles.forEach {script ->
+            ScriptUtils.runInitScript(JdbcDatabaseDelegate(oracle, ""), script)
+        }
+    }
     fun openConnection(): Connection = oracle.createConnection("")
 
     protected fun assertContainsOnlySpecificOperationForIds(
