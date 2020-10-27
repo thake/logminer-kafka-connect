@@ -212,7 +212,7 @@ The following configuration parameter are available:
 
   - `table.whitelist`  
     Tables that should be monitored, separated by ','. Tables have to be
-    specified with schema. Table names are case sensitive (e.g. if your table name is an unquoted identifier, you'll need to specify it in all caps).
+    specified with schema. Table names are case-sensitive (e.g. if your table name is an unquoted identifier, you'll need to specify it in all caps).
     You can also just specify a schema to indicate
     that all tables within that schema should be monitored. Examples:
     'MY\_USER.TABLE, OTHER\_SCHEMA'.
