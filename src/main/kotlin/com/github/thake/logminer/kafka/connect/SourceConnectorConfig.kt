@@ -186,7 +186,7 @@ class SourceConnectorConfig(
                         ConfigDef.Type.STRING,
                         "",
                         Importance.HIGH,
-                        "Tables that should be monitored, separated by ','. Tables have to be specified with schema. You can also just" +
+                        "Tables that should be monitored, separated by ','. Tables have to be specified with schema. Table names are case sensitive (e.g. if your table name is an unquoted identifier, you'll need to specify it in all caps). You can also just " +
                                 "specify a schema to indicate that all tables within that schema should be monitored. Examples: 'MY_USER.TABLE, OTHER_SCHEMA'."
                     )
                     .define(
