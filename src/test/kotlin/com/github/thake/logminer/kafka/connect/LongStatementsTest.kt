@@ -41,6 +41,8 @@ class LongStatementsTest : AbstractCdcSourceIntegrationTest() {
         val entries = 100
         val updateExecutions = 10
         val finished = CountDownLatch(1)
+        val pollConnection = openConnection()
+        val cdcSource = getCdcSource(dictionarySource)
         Thread {
             val conn = openConnection()
             conn.prepareStatement(insertStr).use { stmt ->
@@ -63,9 +65,7 @@ class LongStatementsTest : AbstractCdcSourceIntegrationTest() {
         }.start()
         //Wait for the initialization
         Thread.sleep(2000)
-        val pollConnection = openConnection()
         var totalReturnedResults = 0
-        val cdcSource = getCdcSource(dictionarySource)
         do {
             val results = cdcSource.getResults(pollConnection)
             assertNotNull(results)
