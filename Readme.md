@@ -220,6 +220,13 @@ The following configuration parameter are available:
       - Type: string
       - Default: ""
       - Importance: high
+      
+  - `tombstones.on.delete`  
+    If set to false, no tombstone records will be emitted after a delete operation.
+    
+      - Type: boolean
+      - Default: true
+      - Importance: high
 
   - `db.fetch.size`  
     JDBC result set prefetch size. If not set, it will be defaulted to

@@ -52,7 +52,10 @@ object SourceRecordFields {
     }
 }
 
-class ConnectSchemaFactory(private val nameService: ConnectNameService) {
+class ConnectSchemaFactory(
+    private val nameService: ConnectNameService,
+    private val isEmittingTombstones : Boolean
+) {
 
 
     private fun createKeyStruct(cdcRecord: CdcRecord): Struct {
@@ -80,6 +83,7 @@ class ConnectSchemaFactory(private val nameService: ConnectNameService) {
                 .field(CdcRecordFields.AFTER, recordConnectSchema)
                 .field(CdcRecordFields.SOURCE, sourceSchema)
                 .field(CdcRecordFields.PUBLISH_TIMESTAMP, Timestamp.SCHEMA)
+                .optional()
                 .build()
         val struct = with(record) {
             var updatedAfter = after
@@ -112,13 +116,14 @@ class ConnectSchemaFactory(private val nameService: ConnectNameService) {
         return Pair(valueSchema, struct)
     }
 
-    fun convertToSourceRecord(pollResult: PollResult, partition: Map<String, Any?>): SourceRecord {
+    fun convertToSourceRecords(pollResult: PollResult, partition: Map<String, Any?>): List<SourceRecord> {
+
         val record = pollResult.cdcRecord
         val topic = nameService.getTopicName(record.table)
 
         val value = createValue(record)
         val keyStruct = createKeyStruct(record)
-        return SourceRecord(
+        val normalSourceRecord =  SourceRecord(
             partition,
             pollResult.offset.map,
             topic,
@@ -127,6 +132,23 @@ class ConnectSchemaFactory(private val nameService: ConnectNameService) {
             value.first,
             value.second
         )
+        return if(isEmittingTombstones && pollResult.cdcRecord.operation == Operation.DELETE){
+            val deleteRecord = SourceRecord(
+                partition,
+                pollResult.offset.map,
+                topic,
+                record.dataSchema.keySchema,
+                keyStruct,
+                null,
+                null
+            )
+            listOf(
+                normalSourceRecord,
+                deleteRecord
+            )
+        }else{
+            listOf(normalSourceRecord)
+        }
 
     }
 

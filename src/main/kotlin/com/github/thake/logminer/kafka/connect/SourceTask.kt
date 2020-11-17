@@ -28,7 +28,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
     }
     private var source: Source<out Offset?>
     private val sourcePartition = Collections.singletonMap(TaskConstants.LOG_MINER_OFFSET, config.dbName)
-    private val connectSchemaFactory = ConnectSchemaFactory(nameService)
+    private val connectSchemaFactory = ConnectSchemaFactory(nameService, isEmittingTombstones = config.isTombstonesOnDelete)
 
     init {
         fun getTablesForOwner(owner: String): List<TableId> {
@@ -117,13 +117,13 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
             result = doPoll()
         }
         //Convert the records to SourceRecords
-        return result.mapNotNull {
+        return result.flatMap {
             try {
-                connectSchemaFactory.convertToSourceRecord(it, sourcePartition)
+                connectSchemaFactory.convertToSourceRecords(it, sourcePartition)
             } catch (e: DataException) {
                 logger
                         .warn(e) { "Couldn't convert record $it to schema. This most probably indicates that supplemental logging is not activated for all columns. This record will be skipped." }
-                null
+                emptyList()
             }
         }.also {
             if (it.isEmpty()) {
