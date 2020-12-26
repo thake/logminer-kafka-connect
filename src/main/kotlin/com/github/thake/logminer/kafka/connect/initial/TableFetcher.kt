@@ -17,7 +17,6 @@ class TableFetcher(val conn: Connection, val fetcherOffset: FetcherOffset, val s
     private val schemaDefinition: SchemaDefinition
 
     init {
-
         fun determineQuery(): String {
             val rowIdCondition = fetcherOffset.rowId?.let { "WHERE ROWID > '$it'" } ?: ""
             return "SELECT t.*, ROWID, ORA_ROWSCN FROM ${fetcherOffset.table.fullName} AS OF SCN ${fetcherOffset.asOfScn} t $rowIdCondition order by ROWID ASC"

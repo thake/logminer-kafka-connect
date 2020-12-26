@@ -14,12 +14,23 @@ import java.sql.SQLException
 import java.util.*
 
 private val logger = KotlinLogging.logger {}
-
+class NoConnectionToDatabase : RuntimeException()
 sealed class TaskState
 object StoppedState : TaskState()
 data class StartedState(val config: SourceConnectorConfig, val context: SourceTaskContext) : TaskState() {
-    val connection: Connection by lazy {
-        config.connection
+    private var currentConnection: Connection? = null
+
+    val connection : Connection?
+        get() {
+            var connection = currentConnection
+            if(connection != null && (connection.isClosed || !connection.isValid(1000))){
+                connection = null
+            }
+            if(connection == null){
+                connection = config.openConnection()
+                currentConnection = connection
+            }
+            return connection
     }
     var offset: Offset?
     val nameService: ConnectNameService = SourceDatabaseNameService(config.dbName)
@@ -31,8 +42,9 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
     private val connectSchemaFactory = ConnectSchemaFactory(nameService, isEmittingTombstones = config.isTombstonesOnDelete)
 
     init {
+        val workingConnection = connection ?: error("No connection to database possible at startup time. Aborting.")
         fun getTablesForOwner(owner: String): List<TableId> {
-            return connection.metaData.getTables(null, owner, null, arrayOf("TABLE")).use {
+            return workingConnection.metaData.getTables(null, owner, null, arrayOf("TABLE")).use {
                 val result = mutableListOf<TableId>()
                 while (it.next()) {
                     result.add(TableId(owner, it.getString(3)))
@@ -101,7 +113,8 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
     fun poll(): List<SourceRecord> {
         logger.debug { "Polling database for new changes ..." }
         fun doPoll(): List<PollResult> {
-            source.maybeStartQuery(connection)
+            val workingConnection = connection ?: throw NoConnectionToDatabase()
+            source.maybeStartQuery(workingConnection)
             val result = source.poll()
             //Advance the offset and source
             offset = source.getOffset()
@@ -139,7 +152,7 @@ data class StartedState(val config: SourceConnectorConfig, val context: SourceTa
     fun stop() {
         logger.info { "Kafka connect oracle task will be stopped" }
         this.source.close()
-        this.connection.close()
+        this.connection?.close()
     }
 
 }
@@ -172,12 +185,15 @@ class SourceTask : SourceTask() {
 
     @Throws(InterruptedException::class)
     override fun poll(): List<SourceRecord> {
-        try {
+        return try {
             val currState = state
-            return if (currState is StartedState) currState.poll() else throw IllegalStateException("Task has not been started")
+            if (currState is StartedState) currState.poll() else throw IllegalStateException("Task has not been started")
         } catch (e: SQLException) {
             logger.info(e) { "SQLException thrown. This is most probably due to an error while stopping." }
-            return Collections.emptyList()
+            Collections.emptyList()
+        } catch (e : NoConnectionToDatabase){
+            logger.info(e) {"Currently no connection to the database can be established. Returning 0 records to kafka."}
+            Collections.emptyList()
         }
     }
 

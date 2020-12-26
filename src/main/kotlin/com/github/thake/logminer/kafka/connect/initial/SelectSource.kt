@@ -3,6 +3,7 @@ package com.github.thake.logminer.kafka.connect.initial
 import com.github.thake.logminer.kafka.connect.*
 import mu.KotlinLogging
 import java.sql.Connection
+import java.sql.SQLException
 
 private val logger = KotlinLogging.logger {}
 class SelectSource(
@@ -24,10 +25,17 @@ class SelectSource(
     override fun getOffset() = lastOffset
 
     override fun maybeStartQuery(db: Connection) {
+        val tableFetcher = currentTableFetcher
+        if(tableFetcher != null && tableFetcher.conn != db){
+            tableFetcher.close()
+            currentTableFetcher = null
+        }
         if (currentTableFetcher == null) {
+            val offset = FetcherOffset(determineTableToFetch(), determineAsOfScn(db), lastOffset?.rowId)
+            logger.debug { "Starting new table fetcher with offset $offset" }
             currentTableFetcher = TableFetcher(
                 db,
-                FetcherOffset(determineTableToFetch(), determineAsOfScn(db), lastOffset?.rowId),
+                offset,
                 schemaService = schemaService
             )
         }
@@ -52,36 +60,42 @@ class SelectSource(
     }
 
     override fun poll(): List<PollResult> {
-        var fetcher = currentTableFetcher ?: throw IllegalStateException("maybeStartQuery hasn't been called")
-        val result = mutableListOf<PollResult>()
-        while (result.size < batchSize && continuePolling) {
-            val nextRecord = fetcher.poll()
-            if (nextRecord != null) {
-                lastOffset = nextRecord.offset as SelectOffset
-                result.add(nextRecord)
-            } else {
-                //No new records from the current table. Close the fetcher and check the next table
-                fetcher.close()
-                val newIndex = tablesToFetch.indexOf(fetcher.fetcherOffset.table) + 1
-                if (newIndex < tablesToFetch.size) {
-                    fetcher = TableFetcher(
-                        fetcher.conn,
-                        FetcherOffset(tablesToFetch[newIndex], fetcher.fetcherOffset.asOfScn, null),
-                        schemaService
-                    )
-                    currentTableFetcher = fetcher
-                    //Exit the loop to return the current result set if it is not empty.
-                    if (result.isNotEmpty()) {
-                        break
-                    }
+        try{
+            var fetcher = currentTableFetcher ?: throw IllegalStateException("maybeStartQuery hasn't been called")
+            val result = mutableListOf<PollResult>()
+            while (result.size < batchSize && continuePolling) {
+                val nextRecord = fetcher.poll()
+                if (nextRecord != null) {
+                    lastOffset = nextRecord.offset as SelectOffset
+                    result.add(nextRecord)
                 } else {
-                    //no more records to poll all tables polled
-                    logger.debug { "Stopping fetching from tables as fetch from table ${fetcher.fetcherOffset.table} did not provide any more results." }
-                    continuePolling = false
+                    //No new records from the current table. Close the fetcher and check the next table
+                    fetcher.close()
+                    val newIndex = tablesToFetch.indexOf(fetcher.fetcherOffset.table) + 1
+                    if (newIndex < tablesToFetch.size) {
+                        fetcher = TableFetcher(
+                            fetcher.conn,
+                            FetcherOffset(tablesToFetch[newIndex], fetcher.fetcherOffset.asOfScn, null),
+                            schemaService
+                        )
+                        currentTableFetcher = fetcher
+                        //Exit the loop to return the current result set if it is not empty.
+                        if (result.isNotEmpty()) {
+                            break
+                        }
+                    } else {
+                        //no more records to poll all tables polled
+                        logger.debug { "Stopping fetching from tables as fetch from table ${fetcher.fetcherOffset.table} did not provide any more results." }
+                        continuePolling = false
+                    }
                 }
             }
+            return result
+        }catch (e : SQLException){
+            currentTableFetcher = null
+            continuePolling = true
+            throw e
         }
-        return result
     }
 
     override fun close() {

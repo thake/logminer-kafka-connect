@@ -28,9 +28,9 @@ class SourceConnectorConfig(
         parsedConfig
     )
 
-    val connection by lazy {
+    fun openConnection() : Connection? {
         val dbUri = "${dbHostName}:${dbPort}/${dbSid}"
-        fun openConnection(): Connection {
+        fun doOpenConnection(): Connection {
             return DriverManager.getConnection(
                 "jdbc:oracle:thin:@$dbUri",
                 dbUser, dbPassword
@@ -48,13 +48,13 @@ class SourceConnectorConfig(
             }
             currentAttempt++
             try {
-                connection = openConnection()
+                connection = doOpenConnection()
             } catch (e: SQLException) {
                 logger.error(e) { "Couldn't connect to database with url $dbUri. Attempt $currentAttempt." }
 
             }
         }
-        connection ?: throw SQLException("Couldn't initialize Connection to $dbUri after $dbAttempts attempts.")
+        return connection
     }
 
 
