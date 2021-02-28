@@ -81,7 +81,7 @@ class TransactionConsolidator(
             it.toCdcRecord(lastCommitted.transactionSchemas[it.table]!!)
         } catch (e: DataException) {
             logger.info { "Couldn't convert a logminer row to a cdc record. This may be caused by a changed schema. Schema will be refreshed and conversion will be tried again." }
-            lastCommitted.updateSchema(it.table)
+            lastCommitted.updateSchemaIfOutdated(it.table)
             it.toCdcRecord(lastCommitted.transactionSchemas[it.table]!!).also {
                 logger.info { "Conversion to cdc record was successful with refreshed schema." }
             }

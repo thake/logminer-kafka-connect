@@ -23,6 +23,7 @@ class Transaction(
 ) {
     val xid: String = initialRecord.transaction
     val transactionSchemas: MutableMap<TableId, SchemaDefinition> = mutableMapOf()
+    val alreadyRefreshedSchemas : MutableSet<TableId> = mutableSetOf()
     var lastReadRowId = initialRecord.rowIdentifier.rowId
     var minScn = initialRecord.rowIdentifier.scn
         private set
@@ -83,8 +84,19 @@ class Transaction(
         size++
         logPerformanceStatistics()
     }
-    fun updateSchema(tableId : TableId){
-        transactionSchemas[tableId] = schemaService.refreshSchema(conn, tableId)
+
+    /**
+     * Updates the schema if it may be outdated. A schema for a tableId will only be updated once per transaction.
+     *
+     * This method is thread safe and may be called by multiple threads.
+     */
+    fun updateSchemaIfOutdated(tableId : TableId){
+        synchronized(this) {
+            if(tableId !in alreadyRefreshedSchemas) {
+                transactionSchemas[tableId] = schemaService.refreshSchema(conn, tableId)
+                alreadyRefreshedSchemas.add(tableId)
+            }
+        }
     }
 
     private fun logPerformanceStatistics() {
