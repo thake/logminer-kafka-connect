@@ -12,8 +12,7 @@ import java.sql.Types
 
 class Issue14Test : AbstractCdcSourceIntegrationTest() {
 
-    private fun performInsertBeforeChange(conn: Connection, cdcSource: LogminerSource){
-        val insertedId = 1
+    private fun performInsertBeforeChange(insertedId : Int, conn: Connection, cdcSource: LogminerSource){
         conn.insertRow(insertedId)
         val results = cdcSource.getResults(conn)
         assertContainsOnlySpecificOperationForIds(results, insertedId.rangeTo(insertedId), Operation.INSERT)
@@ -27,15 +26,13 @@ class Issue14Test : AbstractCdcSourceIntegrationTest() {
         val cdcSource = getCdcSource(dictionarySource)
 
         val insertedId = 1
-        conn.insertRow(insertedId)
-
+        performInsertBeforeChange(insertedId, conn, cdcSource)
         conn.prepareStatement("UPDATE ${STANDARD_TABLE.fullName} SET STRING = ?").use { stmt ->
             stmt.setNull(1,Types.NVARCHAR)
             stmt.executeUpdate()
         }
         val results = cdcSource.getResults(conn)
         assertContainsOnlySpecificOperationForIds(results, insertedId.rangeTo(insertedId), Operation.UPDATE)
-        assertAllAfterColumnsContained(results)
         results.forEach {
             val after = it.cdcRecord.after
             after.shouldNotBeNull()
