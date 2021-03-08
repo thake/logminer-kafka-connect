@@ -96,7 +96,9 @@ class ConnectSchemaFactory(
             if (operation == Operation.UPDATE && updatedAfter != null && before != null) {
                 //Enrich the after state with values from the before data set
                 val enrichedAfter = updatedAfter.toMutableMap()
-                before.forEach { enrichedAfter.putIfAbsent(it.key, it.value) }
+                before.forEach {
+                    if (!updatedAfter!!.containsKey(it.key))
+                        enrichedAfter.putIfAbsent(it.key, it.value) }
                 updatedAfter = enrichedAfter
             }
             before?.let {
@@ -154,7 +156,7 @@ class ConnectSchemaFactory(
 
     private fun convertDataToStruct(dataSchema: Schema, values: Map<String, Any?>): Struct {
         return Struct(dataSchema).apply {
-            values.forEach { this.put(it.key, it.value) }
+            values.keys.forEach { this.put(it, values.get(it)) }
         }
     }
 }
