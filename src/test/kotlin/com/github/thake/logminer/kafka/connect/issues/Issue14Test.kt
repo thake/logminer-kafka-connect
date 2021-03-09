@@ -101,7 +101,7 @@ class Issue14Test : AbstractIntegrationTest() {
         )
         val modifyingConnection = openConnection()
         //Initial state
-        (0 until 1).forEach { modifyingConnection.insertRow(it) }
+        modifyingConnection.insertRow(1)
         var result = sourceTask.poll().toMutableList()
         assertTrue(result.isNotEmpty())
 
@@ -112,7 +112,7 @@ class Issue14Test : AbstractIntegrationTest() {
 
         result = sourceTask.readAllSourceRecords() as MutableList<SourceRecord>
         assertTrue(result.size == 1)
-        ((result.get(0).value() as Struct).get("after")as Struct).getString("STRING").shouldBeNull()
+        ((result[0].value() as Struct).get("after") as Struct).getString("STRING").shouldBeNull()
     }
 
     private fun SourceTask.readAllSourceRecords(): List<SourceRecord> {
