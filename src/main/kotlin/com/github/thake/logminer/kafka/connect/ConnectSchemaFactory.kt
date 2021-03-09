@@ -28,7 +28,8 @@ object SourceRecordFields {
     private const val OWNER = "schema"
     private const val TABLE = "table"
     private const val CHANGE_USER = "user"
-    val sourceSchema: Schema = SchemaBuilder.struct().name(LogminerSourceConnector::class.java.`package`.name + ".Source")
+    val sourceSchema: Schema =
+        SchemaBuilder.struct().name(LogminerSourceConnector::class.java.`package`.name + ".Source")
             .field(VERSION, Schema.STRING_SCHEMA)
             .field(CONNECTOR, Schema.STRING_SCHEMA)
             .field(RECORD_TIMESTAMP, Timestamp.SCHEMA)
@@ -41,20 +42,20 @@ object SourceRecordFields {
 
     fun convert(cdcRecord: CdcRecord): Struct {
         return Struct(sourceSchema)
-                .put(VERSION, LogminerSourceConnector.version)
-                .put(CONNECTOR, LogminerSourceConnector.name)
-                .put(RECORD_TIMESTAMP, cdcRecord.timestamp)
-                .put(TRANSACTION, cdcRecord.transaction)
-                .put(SCN, cdcRecord.scn)
-                .put(OWNER, cdcRecord.table.owner)
-                .put(TABLE, cdcRecord.table.table)
-                .put(CHANGE_USER, cdcRecord.username)
+            .put(VERSION, LogminerSourceConnector.version)
+            .put(CONNECTOR, LogminerSourceConnector.name)
+            .put(RECORD_TIMESTAMP, cdcRecord.timestamp)
+            .put(TRANSACTION, cdcRecord.transaction)
+            .put(SCN, cdcRecord.scn)
+            .put(OWNER, cdcRecord.table.owner)
+            .put(TABLE, cdcRecord.table.table)
+            .put(CHANGE_USER, cdcRecord.username)
     }
 }
 
 class ConnectSchemaFactory(
     private val nameService: ConnectNameService,
-    private val isEmittingTombstones : Boolean
+    private val isEmittingTombstones: Boolean
 ) {
 
 
@@ -77,26 +78,28 @@ class ConnectSchemaFactory(
         val recordConnectSchema = record.dataSchema.valueSchema
 
         val valueSchema = SchemaBuilder.struct()
-                .name(name)
-                .field(CdcRecordFields.OPERATION, Schema.STRING_SCHEMA)
-                .field(CdcRecordFields.BEFORE, recordConnectSchema)
-                .field(CdcRecordFields.AFTER, recordConnectSchema)
-                .field(CdcRecordFields.SOURCE, sourceSchema)
-                .field(CdcRecordFields.PUBLISH_TIMESTAMP, Timestamp.SCHEMA)
-                .optional()
-                .build()
+            .name(name)
+            .field(CdcRecordFields.OPERATION, Schema.STRING_SCHEMA)
+            .field(CdcRecordFields.BEFORE, recordConnectSchema)
+            .field(CdcRecordFields.AFTER, recordConnectSchema)
+            .field(CdcRecordFields.SOURCE, sourceSchema)
+            .field(CdcRecordFields.PUBLISH_TIMESTAMP, Timestamp.SCHEMA)
+            .optional()
+            .build()
         val struct = with(record) {
             var updatedAfter = after
 
             val sourceStruct = SourceRecordFields.convert(record)
             val recordStruct = Struct(valueSchema)
-                    .put(CdcRecordFields.OPERATION, operation.stringRep)
-                    .put(CdcRecordFields.SOURCE, sourceStruct)
-                    .put(CdcRecordFields.PUBLISH_TIMESTAMP, java.util.Date())
+                .put(CdcRecordFields.OPERATION, operation.stringRep)
+                .put(CdcRecordFields.SOURCE, sourceStruct)
+                .put(CdcRecordFields.PUBLISH_TIMESTAMP, java.util.Date())
             if (operation == Operation.UPDATE && updatedAfter != null && before != null) {
+                val originalAfter = updatedAfter
                 //Enrich the after state with values from the before data set
-                val enrichedAfter = updatedAfter.toMutableMap()
-                before.forEach { enrichedAfter.putIfAbsent(it.key, it.value) }
+                val enrichedAfter = originalAfter.toMutableMap()
+                //Set the after value with the before value if the key does not exist in the after map.
+                enrichedAfter.putAll(before.filter { it.key !in originalAfter })
                 updatedAfter = enrichedAfter
             }
             before?.let {
@@ -123,7 +126,7 @@ class ConnectSchemaFactory(
 
         val value = createValue(record)
         val keyStruct = createKeyStruct(record)
-        val normalSourceRecord =  SourceRecord(
+        val normalSourceRecord = SourceRecord(
             partition,
             pollResult.offset.map,
             topic,
@@ -132,7 +135,7 @@ class ConnectSchemaFactory(
             value.first,
             value.second
         )
-        return if(isEmittingTombstones && pollResult.cdcRecord.operation == Operation.DELETE){
+        return if (isEmittingTombstones && pollResult.cdcRecord.operation == Operation.DELETE) {
             val deleteRecord = SourceRecord(
                 partition,
                 pollResult.offset.map,
@@ -146,7 +149,7 @@ class ConnectSchemaFactory(
                 normalSourceRecord,
                 deleteRecord
             )
-        }else{
+        } else {
             listOf(normalSourceRecord)
         }
 
@@ -154,7 +157,7 @@ class ConnectSchemaFactory(
 
     private fun convertDataToStruct(dataSchema: Schema, values: Map<String, Any?>): Struct {
         return Struct(dataSchema).apply {
-            values.forEach { this.put(it.key, it.value) }
+            values.keys.forEach { this.put(it, values.get(it)) }
         }
     }
 }
