@@ -35,7 +35,7 @@ dependencies {
     compileOnly("org.apache.kafka", "connect-api", kafkaVersion)
     testRuntimeOnly("com.oracle.ojdbc", "ojdbc8", "19.3.0.0")
     testImplementation("org.apache.kafka", "connect-api", kafkaVersion)
-    testImplementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
+    testImplementation(platform("org.testcontainers:testcontainers-bom:1.17.1"))
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
