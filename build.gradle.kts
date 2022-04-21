@@ -42,7 +42,7 @@ dependencies {
     testImplementation("io.confluent","kafka-connect-avro-data",confluentVersion)
     testImplementation("org.testcontainers", "junit-jupiter")
     testImplementation("org.testcontainers:oracle-xe")
-    testImplementation("ch.qos.logback", "logback-classic", "1.2.3")
+    testImplementation("ch.qos.logback", "logback-classic", "1.2.11")
     testImplementation("ch.qos.logback", "logback-core", "1.2.11")
     testImplementation("io.mockk:mockk:1.10.0")
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
