@@ -31,7 +31,7 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.github.thake.logminer", "logminer-sql-parser", "0.1.0")
     implementation("net.openhft", "chronicle-queue", "5.20.21")
-    implementation("io.github.microutils", "kotlin-logging", "1.11.4")
+    implementation("io.github.microutils", "kotlin-logging", "1.12.5")
     compileOnly("org.apache.kafka", "connect-api", kafkaVersion)
     testRuntimeOnly("com.oracle.ojdbc", "ojdbc8", "19.3.0.0")
     testImplementation("org.apache.kafka", "connect-api", kafkaVersion)
