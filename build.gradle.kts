@@ -24,7 +24,7 @@ repositories {
 }
 
 dependencies {
-    val kafkaVersion by extra("2.5.1")
+    val kafkaVersion by extra("2.8.2")
     val confluentVersion by extra("5.5.14")
     val kotestVersion by extra("4.2.5")
     val junitVersion by extra("5.7.0")
