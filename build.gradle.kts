@@ -26,7 +26,7 @@ repositories {
 dependencies {
     val kafkaVersion by extra("2.5.1")
     val confluentVersion by extra("5.5.14")
-    val kotestVersion by extra("4.2.5")
+    val kotestVersion by extra("4.6.4")
     val junitVersion by extra("5.7.0")
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.github.thake.logminer", "logminer-sql-parser", "0.1.0")
