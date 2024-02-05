@@ -6,7 +6,7 @@ plugins {
     idea
     distribution
     id("net.researchgate.release") version "3.0.2"
-    id("com.github.ben-manes.versions") version "0.42.0"
+    id("com.github.ben-manes.versions") version "0.51.0"
 }
 
 group = "com.github.thake.logminer"
