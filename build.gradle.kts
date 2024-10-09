@@ -44,7 +44,7 @@ dependencies {
     testImplementation("org.testcontainers:oracle-xe")
     testImplementation("ch.qos.logback", "logback-classic", "1.2.11")
     testImplementation("ch.qos.logback", "logback-core", "1.4.5")
-    testImplementation("io.mockk:mockk:1.12.3")
+    testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
 }
