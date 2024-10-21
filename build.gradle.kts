@@ -27,7 +27,7 @@ dependencies {
     val kafkaVersion by extra("2.5.1")
     val confluentVersion by extra("5.5.14")
     val kotestVersion by extra("4.2.5")
-    val junitVersion by extra("5.7.0")
+    val junitVersion by extra("5.11.3")
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.github.thake.logminer", "logminer-sql-parser", "0.1.0")
     implementation("net.openhft", "chronicle-queue", "5.24ea9")
